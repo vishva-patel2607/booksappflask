@@ -145,8 +145,7 @@ def create_app():
                 phonenumber = phonenumber
             )
 
-            db.session.add(user)
-            db.session.commit()
+            user.insert()
 
             return make_response(
                 'Registration successful',
@@ -174,7 +173,9 @@ def create_app():
 
         if check_password_hash(current_user.password, oldpassword):
             current_user.password  = generate_password_hash(newpassword)
-            db.session.commit()
+            
+            current_user.update()
+
             return make_response(
                 'Password changed!',
                 602,
