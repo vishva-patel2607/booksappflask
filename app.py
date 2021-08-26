@@ -190,7 +190,7 @@ def changepassword(current_user):
 
 @app.route('/')
 def hello():
-    return 'Hello, World!'
+    return jsonify({'message': 'Hello,hello, World!'})
 
 
 if __name__ == "__main__":
