@@ -20,11 +20,12 @@ db_drop_and_create_all()
 def create_app():
     app = Flask(__name__)
 
+    
+
+
     setup_db(app)
 
     CORS(app)
-
-    app.config['SECRET_KEY'] = "patel gang"
 
     def token_required(f):
         @wraps(f)
