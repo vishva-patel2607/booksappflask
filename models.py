@@ -53,7 +53,7 @@ class userModel(db.Model):
 
 
     def __init__(self, username, password,email , firstname, lastname, dob, phonenumber):
-        self.username = usename
+        self.username = username
         self.password = password
         self.email = email
         self.firstname = firstname
