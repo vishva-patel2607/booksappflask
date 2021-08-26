@@ -52,8 +52,8 @@ class userModel(db.Model):
     phonenumber = db.Column(db.String(20),nullable=False)
 
 
-    def __init__(self, usename, password,email , firstname, lastname, dob, phonenumber):
-        self.usename = usename
+    def __init__(self, username, password,email , firstname, lastname, dob, phonenumber):
+        self.username = usename
         self.password = password
         self.email = email
         self.firstname = firstname
