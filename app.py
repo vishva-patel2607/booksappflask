@@ -18,8 +18,9 @@ CORS(app)
 
 '''
 commment after run 
-'''
+
 db_drop_and_create_all()
+'''
 
 app.config['SECRET_KEY'] = "patel gang"
 
@@ -193,4 +194,5 @@ def hello():
 
 
 if __name__ == "__main__":
-    app.run(debug = True)
+    port = int(os.environ.get("PORT",5000))
+    app.run(host='127.0.0.1',port=port,debug = True)
