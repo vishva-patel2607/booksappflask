@@ -188,7 +188,7 @@ def changepassword(current_user):
 
 
 
-@app.route('/')
+@app.route('/',methods=['GET'])
 def hello():
     return jsonify({'message': 'Hello,hello, World!'})
 
