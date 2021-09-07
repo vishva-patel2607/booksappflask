@@ -191,7 +191,7 @@ def create_app():
 
     @app.route('/User/Changenumber',methods=['PUT'])
     @token_required
-    def changepassword(current_user):
+    def changephonenumber(current_user):
         data = request.get_json()
 
         newnumber = data.get('newnumber')
