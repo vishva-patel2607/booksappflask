@@ -70,7 +70,7 @@ def create_app():
         return jsonify({'response' : 'false'})
 
 
-    @app.route('/login', methods=['POST'])
+    @app.route('/User/Login', methods=['POST'])
     def login():
         auth = request.get_json()
 
@@ -105,7 +105,7 @@ def create_app():
         )
 
 
-    @app.route('/signup', methods=['POST'])
+    @app.route('/User/Signup', methods=['POST'])
     def signup():
         data = request.get_json()
 
@@ -163,7 +163,7 @@ def create_app():
 
 
 
-    @app.route('/changepassword',methods=['POST'])
+    @app.route('/User/Changepassword',methods=['PUT'])
     @token_required
     def changepassword(current_user):
         data = request.get_json()
@@ -187,6 +187,25 @@ def create_app():
                 603,
                 {'WWW-Changepassword' : 'Old password incorrect!'}
             )
+
+
+    @app.route('/User/Changenumber',methods=['PUT'])
+    @token_required
+    def changepassword(current_user):
+        data = request.get_json()
+
+        newnumber = data.get('newnumber')
+
+        current_user.phonenumber  = newnumber
+            
+        current_user.update()
+
+        return make_response(
+            'Phonenumber changed!',
+            602,
+            {'WWW-Changephonenumber' : 'Phone number Changed!'}
+        )
+        
         
 
 
