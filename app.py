@@ -14,11 +14,7 @@ import boto3
 
 
 
-'''
-commment after run 
 
-db_drop_and_create_all()
-'''
 
 temp = [{"hello" : "how are you"},{"hello2" : "how are ypo2"}]
 
@@ -35,6 +31,11 @@ def create_app():
     setup_db(app)
 
     CORS(app)
+
+    '''
+    commment after run 
+    '''
+    db_drop_and_create_all()
 
     def token_required(f):
         @wraps(f)
