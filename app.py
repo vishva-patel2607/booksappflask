@@ -34,8 +34,8 @@ def create_app():
 
     '''
     commment after run 
-    '''
     db_drop_and_create_all()
+    '''
 
     def token_required(f):
         @wraps(f)
