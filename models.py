@@ -195,7 +195,7 @@ class transactionModel(db.Model):
     __tablename__ = 'booksapp_transaction'
     transaction_id = db.Column(db.BigInteger, primary_key=True)
     book_id  = db.Column(db.BigInteger,nullable=False)
-    transaction_status = db.Column(db.String(200))
+    transaction_status = db.Column(db.String(200),nullable=True)
     lender_id = db.Column(db.BigInteger)
     store_id = db.Column(db.BigInteger)
     borrower_id = db.Column(db.BigInteger)
