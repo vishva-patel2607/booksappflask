@@ -1,13 +1,16 @@
 import os
-from flask import Flask, request, abort, jsonify ,make_response
+from flask import Flask,render_template, request, abort, jsonify ,make_response
 from flask_cors import CORS
-from models import setup_db, userModel, db_drop_and_create_all 
+from models import setup_db, userModel,bookModel, db_drop_and_create_all 
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 import uuid
 from  werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from datetime import datetime, timedelta,date
+from s3_functions import upload_file
+from werkzeug.utils import secure_filename
+import boto3
 
 
 
@@ -16,6 +19,12 @@ commment after run
 
 db_drop_and_create_all()
 '''
+
+temp = [{"hello" : "how are you"},{"hello2" : "how are ypo2"}]
+
+BUCKET = "booksapp-image-data"
+BOOK_UPLOAD_FOLDER = "uploads"
+BUCKET_LINK = "https://"+BUCKET+".s3.amazonaws.com/"
 
 def create_app():
     app = Flask(__name__)
@@ -36,14 +45,30 @@ def create_app():
             if 'x-access-token' in request.headers:
                 token = request.headers['x-access-token']
             if not token:
-                return make_response('Could not verify',409,{'WWW-Authenticate' : 'token not found'})
+                return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Could not verify",
+                            "status" : False,
+                        }
+                    ),
+                    401
+                )
 
             try:
                 data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
                 current_user = userModel.query.filter_by(usernumber = data['usernumber']).first()
                 
             except:
-                return make_response('Could not verify',409,{'WWW-Authenticate' : 'token not found'})
+                return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Could not verify",
+                            "status" : False,
+                        }
+                    ),
+                    401
+                )
 
         
             return f(current_user,*args,**kwargs)
@@ -54,20 +79,20 @@ def create_app():
     @app.route('/User', methods=['POST'])
     @token_required
     def return_response(current_user):
-        return jsonify(
-                usernumber = current_user.usernumber,
-                username  = current_user.username,
-                email = current_user.email,
-                firstname = current_user.firstname,
-                lastname = current_user.lastname,
-                dob = current_user.dob,
-                phonenumber = current_user.phonenumber
-            )
+        return make_response(
+            jsonify(
+                {
+                    "status" : True,
+                    "message" : "The user information succesfully accessed",
+                    "response" : { 
+                                    "user" : current_user.details()
+                                }
 
-    @app.route('/Tokencheck', methods=['POST'])
-    @token_required
-    def check_token(current_user):
-        return jsonify({'response' : 'false'})
+                },
+                200
+            )
+        )
+
 
 
     @app.route('/User/Login', methods=['POST'])
@@ -75,20 +100,30 @@ def create_app():
         auth = request.get_json()
 
         if not auth or not auth.get('username') or not auth.get('password'):
-            return make_response(
-                'Could not verify',
-                401,
-                {'WWW-Authenticate' : 'Login required'}
-            )
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Login required",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'Login required'}
+                )
 
         user = userModel.query.filter_by(username = auth.get('username')).first()
 
         if not user:
-            return make_response(
-                'Could not verify',
-                401,
-                {'WWW-Authenticate' : 'User does not exist'}
-            )
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "User does not exist",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'User does not exist'}
+                )
 
         if check_password_hash(user.password, auth.get('password')):
             token = jwt.encode({
@@ -96,13 +131,32 @@ def create_app():
                 'exp': datetime.utcnow() + timedelta(minutes = 69)
             },app.config['SECRET_KEY'],algorithm="HS256")
 
-            return make_response(jsonify(token = token,username = user.username,usernumber = user.usernumber),201)
+            return make_response(
+                    jsonify(
+                        {
+                            "message" : "Log In successfull",
+                            "status" : True,
+                            "response" : {
 
-        return make_response(
-            'Could not verify',
-            403,
-            {'WWW-Authenticate' : 'Incorrect password'}
-        )
+                                            "token" : token,
+                                            "username" : user.username,
+                                            "usernumber" : user.usernumber
+                                        }
+                        }
+                    ),
+                    201
+                )
+
+        return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Incorrect password",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'Incorrect password'}
+                )
 
 
     @app.route('/User/Signup', methods=['POST'])
@@ -123,11 +177,15 @@ def create_app():
         try:
             dob = date(int(year),int(month),int(day))
         except:
-            return make_response(
-                'Invalid Date',
-                201,
-                {'WWW-Authenticate' : 'Invalid Date'}
-            )
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Invalid Date",
+                            "status" : False,
+                        }
+                    ),
+                    400
+                )
 
         
         user_username = userModel.query.filter_by(username = username).first()
@@ -148,7 +206,12 @@ def create_app():
             user.insert()
 
             return make_response(
-                'Registration successful',
+                jsonify(
+                        {
+                            "message" : "Registration successful",
+                            "status" : True,
+                        }
+                    ),
                 201,
                 {'WWW-Authenticate' : 'Registration successful'}
             )
@@ -156,8 +219,13 @@ def create_app():
 
         else:
             return make_response(
-                'User already exists',
-                201,
+                jsonify(
+                        {
+                            "message" : "User already exists",
+                            "status" : False,
+                        }
+                    ),
+                400,
                 {'WWW-Authenticate' : 'User already exists'}
             )
 
@@ -177,15 +245,25 @@ def create_app():
             current_user.update()
 
             return make_response(
-                'Password changed!',
-                602,
-                {'WWW-Changepassword' : 'Password Changed!'}
+                jsonify(
+                        {
+                            "message" : "Password Changed",
+                            "status" : True,
+                        }
+                    ),
+                201,
+                {'WWW-Authenticate' : 'Password Changed!'}
             )
         else:
             return make_response(
-                'Old password incorrect!',
-                603,
-                {'WWW-Changepassword' : 'Old password incorrect!'}
+                jsonify(
+                        {
+                            "message" : 'Old password incorrect!',
+                            "status" : False,
+                        }
+                    ),
+                401,
+                {'WWW-Authenticate' :  'Old password incorrect!'}
             )
 
 
@@ -201,11 +279,86 @@ def create_app():
         current_user.update()
 
         return make_response(
-            'Phonenumber changed!',
-            602,
-            {'WWW-Changephonenumber' : 'Phone number Changed!'}
-        )
+                jsonify(
+                        {
+                            "message" : "Phonenumber Changed",
+                            "status" : True,
+                        }
+                    ),
+                201
+            )
+
+
+
+    @app.route('/Book/upload',methods=['POST'])
+    @token_required
+    def uploadbook(current_user):
+        book_name = request.form.get("book_name")
+        book_year = request.form.get("book_year")
+        book_condition = request.form.get("book_condition")
+        book_img = request.files.get('book_img')
+        book_price = request.form.get('book_price')
+        store_id = request.form.get('store_id')
+        usernumber = current_user.usernumber
+        book_author = request.form.get('book_author')
+
+        filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
+        upload_file(filename,BUCKET,body=book_img)
         
+        book_img_url = BUCKET_LINK+"filename"
+
+        book = bookModel(
+            book_name  = book_name,
+            book_year = book_year,
+            book_condition = book_condition,
+            book_img = book_img_url,
+            book_price = book_price,
+            store_id = store_id,
+            usernumber = usernumber,
+            book_author = book_author
+        )
+
+        book.insert()
+
+        return make_response(
+            jsonify(
+                {
+                            "message" : "Phonenumber Changed",
+                            "status" : True,
+                            "response" : book.details()
+                }
+            ),
+            201
+        )
+
+
+
+    @app.route('/Book/uploadedbooks',methods=['POST'])
+    @token_required
+    def uploadedbooks(current_user):
+
+        books = bookModel.query.filter_by(usernumber = current_user.usernumber).all()
+
+        booklist = [book.details() for book in books]
+
+        return make_response(
+            jsonify(
+                {
+                            "message" : "Phonenumber Changed",
+                            "status" : True,
+                            "response" : {
+                                "books" : booklist
+                            }
+                }
+            ),
+            200
+        )
+
+
+
+
+    
+
         
 
 
@@ -213,7 +366,7 @@ def create_app():
 
     @app.route('/',methods=['GET'])
     def hello():
-        return jsonify({'message': 'Hello,hello, World!'})
+        return jsonify({"hello": temp})
 
 
 
