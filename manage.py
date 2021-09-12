@@ -3,7 +3,7 @@ from flask_migrate import Migrate, MigrateCommand
 
 from app import app
 from models import db
-
+from geoalchemy2.types import Geometry
 
 migrate = Migrate(app, db)
 manager = Manager(app)
