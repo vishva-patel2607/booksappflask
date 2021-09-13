@@ -297,7 +297,7 @@ def create_app():
         book_name = request.form.get("book_name")
         book_year = request.form.get("book_year")
         book_condition = request.form.get("book_condition")
-        book_img = request.form.get('book_img')
+        book_img = request.files['book_img']
         book_price = request.form.get('book_price')
         store_id = request.form.get('store_id')
         usernumber = current_user.usernumber
