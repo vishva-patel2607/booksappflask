@@ -326,7 +326,9 @@ def create_app():
                 {
                             "message" : "Book uploaded",
                             "status" : True,
-                            "response" : book.details()
+                            "response" : {
+                                "book" : book.details()
+                            }
                 }
             ),
             201
