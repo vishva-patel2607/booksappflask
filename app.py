@@ -306,7 +306,7 @@ def create_app():
         filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
         upload_file(filename,BUCKET,body=book_img)
         
-        book_img_url = BUCKET_LINK+"filename"
+        book_img_url = BUCKET_LINK+filename
 
         book = bookModel(
             book_name  = book_name,
