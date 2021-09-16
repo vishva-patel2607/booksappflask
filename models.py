@@ -147,32 +147,41 @@ class bookModel(db.Model):
 class storeModel(db.Model):
     __tablename__ = 'booksapp_store'
     store_id = db.Column(db.BigInteger, primary_key=True)
+    usernumber = db.Column(db.BigInteger, nullable=False)
     store_name  = db.Column(db.String(50),nullable=False)
     store_incharge = db.Column(db.String(20))
     store_address = db.Column(db.String(100),nullable=False)
     store_pincode = db.Column(db.String(10),nullable=False)
     store_number = db.Column(db.String(15),nullable=False)
     store_location = db.Column(Geometry(geometry_type='POINT', srid=4326),nullable=False)
+    store_latitude = db.Column(db.Float,nullable=False)
+    store_longitude = db.Column(db.Float,nullable=False)
 
 
-    def __init__(self, store_name, store_incharge,store_address , store_pincode, store_number, store_location):
+    def __init__(self,usernumber, store_name, store_incharge,store_address , store_pincode, store_number, store_location,store_latitude,store_longitude):
+        self.usernumber = usernumber
         self.store_name = store_name
         self.store_incharge = store_incharge
         self.store_address = store_address
         self.store_pincode = store_pincode
         self.store_number = store_number
         self.store_location = store_location
+        self.store_latitude = store_latitude
+        self.store_longitude = store_longitude
 
 
     def details(self):
         return {
             'store_id': self.store_id,
+            'usernumber': self.usernumber,
             'store_name': self.store_name,
             'store_incharge': self.store_incharge,
             'store_address': self.store_address,
             'store_pincode': self.store_pincode,
             'store_number': self.store_number,
             'store_location': self.store_location,
+            'store_latitude': self.store_latitude,
+            'store_longitude': self.store_longitude
         }
 
     def insert(self):

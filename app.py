@@ -1,7 +1,9 @@
 import os
 from flask import Flask,render_template, request, abort, jsonify ,make_response
 from flask_cors import CORS
-from models import setup_db, userModel,bookModel, db_drop_and_create_all 
+from sqlalchemy.sql.sqltypes import DateTime
+from sqlalchemy.sql.type_api import NULLTYPE
+from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all 
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 import uuid
@@ -11,6 +13,7 @@ from datetime import datetime, timedelta,date
 from s3_functions import upload_file
 from werkzeug.utils import secure_filename
 import boto3
+from status import transaction_statuses,lender_transaction_statuses,store_transaction_statuses,borrower_transaction_statuses
 
 
 
@@ -291,7 +294,7 @@ def create_app():
 
 
 
-    @app.route('/Book/upload',methods=['POST'])
+    @app.route('/Book/Upload',methods=['POST'])
     @token_required
     def uploadbook(current_user):
         book_name = request.form.get("book_name")
@@ -321,6 +324,26 @@ def create_app():
 
         book.insert()
 
+
+        transaction = transactionModel(
+            book_id= book.book_id,
+            transaction_status= transaction_statuses.uploaded_with_lender,
+            lender_id= usernumber,
+            store_id= store_id,
+            borrower_id= None,
+            lender_transaction_status= lender_transaction_statuses.pending,
+            store_transaction_status= store_transaction_statuses.pending,
+            borrower_transaction_status = borrower_transaction_statuses.pending,
+            book_price= book_price,
+            transaction_upload_ts= datetime.now(),
+            transaction_submit_ts= None,
+            transaction_pickup_ts= None,
+            transaction_return_ts= None,
+            transaction_lenderpickup_ts= None,
+        )
+
+        transaction.insert()
+
         return make_response(
             jsonify(
                 {
@@ -336,18 +359,22 @@ def create_app():
 
 
 
-    @app.route('/Book/uploadedbooks',methods=['POST'])
+    @app.route('/Book/Uploadedbooks',methods=['POST'])
     @token_required
     def uploadedbooks(current_user):
 
         books = bookModel.query.filter_by(usernumber = current_user.usernumber).all()
 
-        booklist = [book.details() for book in books]
+        booklist = list()
+
+        for book in books:
+            status = transactionModel.query.filter_by(book_id = book.book_id).first().transaction_status
+            booklist.append(book.details().update({"status" : status}))
 
         return make_response(
             jsonify(
                 {
-                            "message" : "Phonenumber Changed",
+                            "message" : "All the books for the user retrieved",
                             "status" : True,
                             "response" : {
                                 "books" : booklist
@@ -358,6 +385,48 @@ def create_app():
         )
 
 
+
+    @app.route('/Store/Signup', methods=['POST'])
+    @token_required
+    def signupstore(current_user):
+
+        data = request.get_json()
+        usernumber = current_user.usernumber
+        store_name = data.get('store_name')
+        store_incharge = current_user.username
+        store_address = data.get('store_address')
+        store_pincode = data.get('store_pincode')
+        store_number = data.get('store_number')
+        store_longitude = data.get('longitude')
+        store_latitude = data.get('latitude')
+
+        store = storeModel(
+            usernumber= usernumber,
+            store_name= store_name,
+            store_incharge= store_incharge,
+            store_address= store_address,
+            store_pincode = store_pincode,
+            store_number = store_number,
+            store_location = 'SRID=4326;POINT(%.8f %.8f)' % (store_longitude,store_latitude),
+            store_latitude= store_latitude,
+            store_longitude= store_longitude,
+        )
+
+        store.insert()
+
+
+        return make_response(
+            jsonify(
+                {
+                            "message" : "Store Signed up",
+                            "status" : True,
+                            "response" : {
+                                "store" : store.details()
+                            }
+                }
+            ),
+            200
+        )
 
 
     
