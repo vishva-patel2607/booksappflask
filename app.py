@@ -23,7 +23,7 @@ temp = [{"hello" : "how are you"},{"hello2" : "how are ypo2"}]
 
 BUCKET = "booksapp-image-data"
 BOOK_UPLOAD_FOLDER = "uploads"
-BUCKET_LINK = "https://"+BUCKET+".s3.amazonaws.com/"
+BUCKET_LINK = "https://"+BUCKET+".s3.ap-south-1.amazonaws.com/books-image-folder/"
 
 def create_app():
     app = Flask(__name__)
@@ -350,7 +350,8 @@ def create_app():
                             "message" : "Book uploaded",
                             "status" : True,
                             "response" : {
-                                "book" : book.details()
+                                "book" : book.details(),
+                                "transaction" : transaction.details(),
                             }
                 }
             ),
