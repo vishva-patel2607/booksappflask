@@ -394,7 +394,7 @@ def create_app():
         data = request.get_json()
         usernumber = current_user.usernumber
         store_name = data.get('store_name')
-        store_incharge = current_user.username
+        store_incharge = current_user.firstname+" "+current_user.lastname
         store_address = data.get('store_address')
         store_pincode = data.get('store_pincode')
         store_number = data.get('store_number')
