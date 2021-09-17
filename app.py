@@ -19,11 +19,12 @@ from status import transaction_statuses,lender_transaction_statuses,store_transa
 
 
 
+
 temp = [{"hello" : "how are you"},{"hello2" : "how are ypo2"}]
 
 BUCKET = "booksapp-image-data"
 BOOK_UPLOAD_FOLDER = "uploads"
-BUCKET_LINK = "https://"+BUCKET+".s3.ap-south-1.amazonaws.com/books-image-folder/"
+BUCKET_LINK = "https://"+BUCKET+".s3.ap-south-1.amazonaws.com/book-image-folder/"
 
 def create_app():
     app = Flask(__name__)
@@ -433,6 +434,19 @@ def create_app():
             ),
             200
         )
+    
+    '''
+    @app.route('Store/Getstore', methods=['POST'])
+    @token_required
+    def getstores(current_user):
+        
+        data = request.get_json()
+
+        longitude = data.get('longitude')
+        latitude = data.get('latitude')
+
+        ret = session.query().order_by(Comparator.distance_centroid(storeModel.store_location,func.Geometry(func.ST_GeographyFromText('POINT({} {})'.format(longitude, latitude))))).limit(1).first()
+    '''
 
 
     
