@@ -179,7 +179,6 @@ class storeModel(db.Model):
             'store_address': self.store_address,
             'store_pincode': self.store_pincode,
             'store_number': self.store_number,
-            'store_location': self.store_location,
             'store_latitude': self.store_latitude,
             'store_longitude': self.store_longitude
         }
