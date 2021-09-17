@@ -132,7 +132,7 @@ def create_app():
         if check_password_hash(user.password, auth.get('password')):
             token = jwt.encode({
                 'usernumber': user.usernumber,
-                'exp': datetime.utcnow() + timedelta(minutes = 69)
+                'exp': datetime.utcnow() + timedelta(minutes = 1000)
             },app.config['SECRET_KEY'],algorithm="HS256")
 
             return make_response(
@@ -366,11 +366,11 @@ def create_app():
 
         books = bookModel.query.filter_by(usernumber = current_user.usernumber).all()
 
-        booklist = list()
+        booklist = []
 
         for book in books:
-            status = transactionModel.query.filter_by(book_id = book.book_id).first().transaction_status
-            booklist.append(book.details().update({"status" : status}))
+            status = transactionModel.query.filter_by(book_id = book.book_id).first()
+            booklist.append(book.details().update({"book_status" : status.transaction_status}))
 
         return make_response(
             jsonify(
