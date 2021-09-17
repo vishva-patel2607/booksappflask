@@ -371,13 +371,15 @@ def create_app():
         #    status = transactionModel.query.filter_by(book_id = book.book_id).first()
         #    booklist.append(book.details().update({"book_status" : status.transaction_status}))
 
+        booklist = [book.details() for book in books]
+
         return make_response(
             jsonify(
                 {
                             "message" : "All the books for the user retrieved",
                             "status" : True,
                             "response" : {
-                                "books" : books
+                                "books" : booklist
                             }
                 }
             ),
