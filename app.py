@@ -367,11 +367,15 @@ def create_app():
         books = bookModel.query.filter_by(usernumber = current_user.usernumber).all()
         
 
-        #for book in books:
-        #    status = transactionModel.query.filter_by(book_id = book.book_id).first()
-        #    booklist.append(book.details().update({"book_status" : status.transaction_status}))
+        booklist = [] 
 
-        booklist = [book.details() for book in books]
+        for book in books:
+            status = transactionModel.query.filter_by(book_id = book.book_id).first()
+            book_dict = book.details()
+            book_dict['book_status'] = status.transaction_status
+            booklist.append(book_dict)
+
+        
 
         return make_response(
             jsonify(
