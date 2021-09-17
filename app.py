@@ -364,8 +364,8 @@ def create_app():
     @token_required
     def uploadedbooks(current_user):
 
-        books = bookModel.query.filter_by(usernumber = current_user.usernumber).all()
-
+        books = bookModel.query.filter_by(usernumber = current_user.usernumber).first()
+        
         booklist = []
 
         for book in books:
