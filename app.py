@@ -364,13 +364,12 @@ def create_app():
     @token_required
     def uploadedbooks(current_user):
 
-        books = bookModel.query.filter_by(usernumber = current_user.usernumber).first()
+        books = bookModel.query.filter_by(usernumber = current_user.usernumber).all()
         
-        booklist = []
 
-        for book in books:
-            status = transactionModel.query.filter_by(book_id = book.book_id).first()
-            booklist.append(book.details().update({"book_status" : status.transaction_status}))
+        #for book in books:
+        #    status = transactionModel.query.filter_by(book_id = book.book_id).first()
+        #    booklist.append(book.details().update({"book_status" : status.transaction_status}))
 
         return make_response(
             jsonify(
@@ -378,7 +377,7 @@ def create_app():
                             "message" : "All the books for the user retrieved",
                             "status" : True,
                             "response" : {
-                                "books" : booklist
+                                "books" : books
                             }
                 }
             ),
