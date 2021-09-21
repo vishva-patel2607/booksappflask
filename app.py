@@ -453,7 +453,7 @@ def create_app():
         retlist = []
         for shop in shops:
             shop_dict = shop.details()
-            shop_wkt = 'SRID=4326;POINT(%.8f %.8f)' % (shop_dict.store_longitude,shop_dict.store_latitude)
+            shop_wkt = 'SRID=4326;POINT(%.8f %.8f)' % (shop_dict['store_longitude'],shop_dict['store_latitude'])
             shop_dict['store_distance'] = Comparator.distance_centroid(func.ST_GeographyFromText(wkt),func.ST_GeographyFromText(shop_wkt))
             retlist.append(shop_dict)
 
