@@ -448,8 +448,16 @@ def create_app():
         latitude = data.get('latitude')
 
         wkt = 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
-        ret = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText(wkt))).limit(10)
-        retlist = [r.details() for r in ret]
+        shops = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText(wkt))).limit(10)
+        
+        retlist = []
+        for shop in shops:
+            shop_dict = shop.details()
+            shop_wkt = 'SRID=4326;POINT(%.8f %.8f)' % (shop_dict.store_longitude,shop_dict.store_latitude)
+            shop_dict['store_distance'] = Comparator.distance_centroid(func.ST_GeographyFromText(wkt),func.ST_GeographyFromText(shop_wkt))
+            retlist.append(shop_dict)
+
+
         return make_response(
             jsonify(
                 {
@@ -457,6 +465,7 @@ def create_app():
                     "status" : True,
                     "response" : {
                         "stores" : retlist
+                        
                     }
                 }
             )
