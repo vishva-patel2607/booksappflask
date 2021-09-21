@@ -448,7 +448,7 @@ def create_app():
         latitude = data.get('latitude')
 
         wkt = 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
-        ret = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.Geometry(func.ST_GeographyFromText(wkt)))).limit(10)
+        ret = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText(wkt))).limit(10)
         retlist = [r.details() for r in ret]
         return make_response(
             jsonify(
