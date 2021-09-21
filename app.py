@@ -440,7 +440,8 @@ def create_app():
     
     
     @app.route('/Store/Getstore', methods=['POST'])
-    def getstores():
+    @token_required
+    def getstores(current_user):
         
         data = request.get_json()
 
