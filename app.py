@@ -3,7 +3,7 @@ from flask import Flask,render_template, request, abort, jsonify ,make_response
 from flask_cors import CORS
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.type_api import NULLTYPE
-from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all 
+from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 import uuid
@@ -14,6 +14,9 @@ from s3_functions import upload_file
 from werkzeug.utils import secure_filename
 import boto3
 from status import transaction_statuses,lender_transaction_statuses,store_transaction_statuses,borrower_transaction_statuses
+from geoalchemy2.types import Geometry
+from geoalchemy2.comparator import Comparator
+import geoalchemy2.functions as func
 
 
 
@@ -435,9 +438,8 @@ def create_app():
             200
         )
     
-    '''
+    
     @app.route('Store/Getstore', methods=['POST'])
-    @token_required
     def getstores(current_user):
         
         data = request.get_json()
@@ -445,8 +447,21 @@ def create_app():
         longitude = data.get('longitude')
         latitude = data.get('latitude')
 
-        ret = session.query().order_by(Comparator.distance_centroid(storeModel.store_location,func.Geometry(func.ST_GeographyFromText('POINT({} {})'.format(longitude, latitude))))).limit(1).first()
-    '''
+        wkt = 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
+        ret = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.Geometry(func.ST_GeographyFromText(wkt)))).limit(10)
+        retlist = [r.details() for r in ret]
+        return make_response(
+            jsonify(
+                {
+                    "message" : "Found the nearest stores",
+                    "status" : True,
+                    "response" : {
+                        "stores" : retlist
+                    }
+                }
+            )
+        )
+    
 
 
     
