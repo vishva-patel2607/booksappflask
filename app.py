@@ -348,6 +348,7 @@ def create_app():
 
         transaction.insert()
 
+
         return make_response(
             jsonify(
                 {
@@ -375,9 +376,10 @@ def create_app():
 
         for book in books:
             status = transactionModel.query.filter_by(book_id = book.book_id).first()
-            book_dict = book.details()
-            book_dict['book_status'] = status.transaction_status
-            booklist.append(book_dict)
+            if status.transaction_status != transaction_statuses.pickup_by_lender:
+                book_dict = book.details()
+                book_dict['book_status'] = status.transaction_status
+                booklist.append(book_dict)
 
         
 
@@ -393,6 +395,81 @@ def create_app():
             ),
             200
         )
+
+
+    @app.route('/Book/Uploadedbooks/Edit',methods=['PUT'])
+    @token_required
+    def edituploadedbook(current_user):
+
+        data = request.get_json()
+        book_id = data.get('book_id')
+        book_name = data.get('book_name')
+        book_author = data.get('book_author')
+        book_price = data.get('book_price')
+        book_condition = data.get('book_condition')
+        book_year = data.get('book_year')
+
+        book = bookModel.query.filter_by(book_id = book_id).first()
+
+        book.book_name = book_name
+        book.book_author = book_author
+        book.book_price = book_price
+        book.book_condition = book_condition
+        book.book_year = book_year
+
+        book.update()
+
+        return make_response(
+            jsonify(
+                {
+                            "message" : "Book Updated",
+                            "status" : True,
+                            "response" : {
+                                "book" : book.details(),
+                            }
+                }
+            ),
+            201
+        )
+
+
+    @app.route('/Book/Uploadedbooks/Remove',methods=['DELETE'])
+    @token_required
+    def removeuploadedbook(current_user):
+
+        data = request.get_json()
+        book_id = data.get('book_id')
+
+        ret = {
+            "message" : "Sorry but the book is being borrowed by someone and so can't be removed!",
+            "status" : False,
+        }
+
+        transaction = transactionModel.query.filter_by(book_id = book_id).first()
+
+        if transaction.transaction_status == transaction_statuses.uploaded_with_lender:
+            transaction.transaction_status = transaction_statuses.pickup_by_lender
+            transaction.transaction_lenderpickup_ts = datetime.utcnow()
+            transaction.lender_transaction_status = lender_transaction_statuses.removed_by_lender
+            transaction.store_transaction_status = store_transaction_statuses.removed_by_lender
+            transaction.update()
+            ret["message"] = "Book removed from uploads!"
+            ret["status"] = True
+            
+        elif transaction.transaction_status == transaction_statuses.submitted_by_lender:
+            transaction.transaction_status = transaction_statuses.removed_by_lender
+            transaction.transaction_return_ts = datetime.utcnow()
+            transaction.lender_transaction_status = lender_transaction_statuses.removed_by_lender
+            transaction.store_transaction_status = store_transaction_statuses.removed_by_lender
+            transaction.update()
+            ret["message"] = "Book will be removed once collected from shop!"
+            ret["status"] = True
+            
+        return make_response(
+            jsonify(ret),
+            201
+        )
+
 
 
 
