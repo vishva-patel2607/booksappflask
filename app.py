@@ -24,7 +24,7 @@ from transactioncodes import getcodes
 
 
 
-temp = [{"hello" : "how are you"},{"hello2" : "how are ypo2"}]
+temp = [{"hello" : "Why are you"},{"hello2" : "how are ypo2"}]
 
 BUCKET = "booksapp-image-data"
 BOOK_UPLOAD_FOLDER = "uploads"
