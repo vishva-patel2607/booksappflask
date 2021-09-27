@@ -17,6 +17,7 @@ from status import transaction_statuses,lender_transaction_statuses,store_transa
 from geoalchemy2.types import Geometry
 from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
+from transactioncodes import getcodes
 
 
 
@@ -379,6 +380,7 @@ def create_app():
             if status.transaction_status != transaction_statuses.pickup_by_lender:
                 book_dict = book.details()
                 book_dict['book_status'] = status.transaction_status
+                book_dict['book_transaction_code'] = getcodes(status)
                 booklist.append(book_dict)
 
         
