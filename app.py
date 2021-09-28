@@ -510,7 +510,7 @@ def create_app():
 
     @app.route('/Store/User', methods=['POST'])
     @token_required
-    def signupstore(current_user):
+    def returnusers(current_user):
         data = request.get_json()
 
         store_id = data.get('store_id')
