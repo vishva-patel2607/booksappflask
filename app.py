@@ -754,7 +754,7 @@ def create_app():
                     
     @app.route('/Store/transaction/getallbooks', methods=['POST'])
     @token_required
-    def getdropoffs(current_user):
+    def getallbooks(current_user):
         data = request.get_json()
 
         store_id = data.get('store_id')
