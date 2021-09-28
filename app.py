@@ -473,9 +473,69 @@ def create_app():
         )
 
 
+    @app.route('/Store/Getstore', methods=['POST'])
+    @token_required
+    def getstores(current_user):
+        
+        data = request.get_json()
+
+        longitude = data.get('longitude')
+        latitude = data.get('latitude')
+
+        wkt = 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
+        shops = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText(wkt))).limit(10)
+        
+        retlist = []
+        for shop in shops:
+            shop_dict = shop.details()
+            shop_wkt = 'SRID=4326;POINT(%.8f %.8f)' % (shop_dict['store_longitude'],shop_dict['store_latitude'])
+            shop_dict['store_distance'] = db.session.query(func.ST_Distance(func.ST_GeographyFromText(wkt),func.ST_GeographyFromText(shop_wkt))).first()
+            retlist.append(shop_dict)
 
 
-    @app.route('/Store/Signup', methods=['POST'])
+        return make_response(
+            jsonify(
+                {
+                    "message" : "Found the nearest stores",
+                    "status" : True,
+                    "response" : {
+                        "stores" : retlist
+                        
+                    }
+                }
+            )
+        )
+
+
+
+    @app.route('/Store/User', methods=['POST'])
+    @token_required
+    def signupstore(current_user):
+        data = request.get_json()
+
+        store_id = data.get('store_id')
+
+        store = storeModel.query.filter_by(store_id = store_id).first()
+
+        return make_response(
+            jsonify(
+                {
+                    "status" : True,
+                    "message" : "The user and store information succesfully accessed",
+                    "response" : { 
+                                    "user" : current_user.details(),
+                                    "store" : store.details()
+                                } 
+
+                },
+            ),
+            200
+        )
+
+        
+
+
+    @app.route('/Store/User/Signup', methods=['POST'])
     @token_required
     def signupstore(current_user):
 
@@ -518,45 +578,223 @@ def create_app():
         )
     
     
-    @app.route('/Store/Getstore', methods=['POST'])
-    @token_required
-    def getstores(current_user):
+    
+    
+
+
+    @app.route('/Store/User/Login', methods=['POST'])
+    def storeuserlogin():
+        auth = request.get_json()
+
+        if not auth or not auth.get('username') or not auth.get('password'):
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Login required",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'Login required'}
+                )
+
+        user = userModel.query.filter_by(username = auth.get('username')).first()
+
+        if not user:
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "User does not exist",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'User does not exist'}
+                )
+        else:
+            store = storeModel.query.filter_by(usernumber = user.usernumber).first()
+
+            if not store:
+                return make_response(
+                    jsonify(
+                        {
+                            "message" : "User is not a registered store",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : "User is not a registered store"}
+                )
+            else :
+                if check_password_hash(user.password, auth.get('password')):
+                    token = jwt.encode({
+                        'usernumber': user.usernumber,
+                        'exp': datetime.utcnow() + timedelta(minutes = 1000)
+                    },app.config['SECRET_KEY'],algorithm="HS256")
+
+                    return make_response(
+                            jsonify(
+                                {
+                                    "message" : "Log In successfull",
+                                    "status" : True,
+                                    "response" : {
+
+                                                    "token" : token,
+                                                    "username" : user.username,
+                                                    "usernumber" : user.usernumber,
+                                                    "store_id" : store.store_id 
+                                                }
+                                }
+                            ),
+                            201
+                        )
+                else:
+                    return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Incorrect password",
+                                        "status" : False,
+                                    }
+                                ),
+                                401,
+                                {'WWW-Authenticate' : 'Incorrect password'}
+                            )
+
+
         
+    @app.route('/Store/transaction/pickups', methods=['POST'])
+    @token_required
+    def getpickups(current_user):
         data = request.get_json()
 
-        longitude = data.get('longitude')
-        latitude = data.get('latitude')
+        store_id = data.get('store_id')
 
-        wkt = 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
-        shops = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText(wkt))).limit(10)
-        
-        retlist = []
-        for shop in shops:
-            shop_dict = shop.details()
-            shop_wkt = 'SRID=4326;POINT(%.8f %.8f)' % (shop_dict['store_longitude'],shop_dict['store_latitude'])
-            shop_dict['store_distance'] = db.session.query(func.ST_Distance(func.ST_GeographyFromText(wkt),func.ST_GeographyFromText(shop_wkt))).first()
-            retlist.append(shop_dict)
+        pickup_books = transactionModel.\
+                        query.\
+                        filter(transactionModel.store_id == store_id).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.removed_by_lender) ).\
+                        all()
+
+        if not pickup_books: 
+            return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "No pickups right now",
+                                        "status" : True,
+                                    }
+                                ),
+                                200,
+                            )
+        else :
+            pickup_book_list = []
+            for book in pickup_books:
+                b = bookModel.query.filter_by(book_id = book.book_id).first()
+                book_dict = b.details()
+                book_dict['book_transaction_code'] = getcodes(book)
+                pickup_book_list.append(book_dict)
+
+                return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "All the books to be picked up",
+                                        "status" : True,
+                                        "response" : {
+                                            "pickup_book_list" : pickup_book_list
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
 
 
-        return make_response(
-            jsonify(
-                {
-                    "message" : "Found the nearest stores",
-                    "status" : True,
-                    "response" : {
-                        "stores" : retlist
+    @app.route('/Store/transaction/dropoffs', methods=['POST'])
+    @token_required
+    def getdropoffs(current_user):
+        data = request.get_json()
+
+        store_id = data.get('store_id')
+
+        dropoff_books = transactionModel.\
+                        query.\
+                        filter(transactionModel.store_id == store_id).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.return_by_borrower) ).\
+                        all()
+
+        if not dropoff_books: 
+            return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "No dropoffs right now",
+                                        "status" : True,
+                                    }
+                                ),
+                                200,
+                            )
+        else :
+            dropoff_book_list = []
+            for book in dropoff_books:
+                b = bookModel.query.filter_by(book_id = book.book_id).first()
+                book_dict = b.details()
+                book_dict['book_transaction_code'] = getcodes(book)
+                dropoff_book_list.append(book_dict)
+
+                return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "All the books to be dropped off",
+                                        "status" : True,
+                                        "response" : {
+                                            "pickup_book_list" : dropoff_book_list
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
                         
-                    }
-                }
-            )
-        )
-    
+                    
+    @app.route('/Store/transaction/getallbooks', methods=['POST'])
+    @token_required
+    def getdropoffs(current_user):
+        data = request.get_json()
 
+        store_id = data.get('store_id')
 
-    
+        books = transactionModel.\
+                        query.\
+                        filter(transactionModel.store_id == store_id).\
+                        all()
 
+        if not books: 
+            return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "No books at the store right now",
+                                        "status" : True,
+                                    }
+                                ),
+                                200,
+                            )
+        else :
+            book_list = []
+            for book in books:
+                b = bookModel.query.filter_by(book_id = book.book_id).first()
+                book_dict = b.details()
+                book_dict['book_transaction_code'] = getcodes(book)
+                book_list.append(book_dict)
+
+                return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "All the books to be dropped off",
+                                        "status" : True,
+                                        "response" : {
+                                            "pickup_book_list" : book_list
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
         
-
 
 
 

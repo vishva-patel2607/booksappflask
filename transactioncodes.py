@@ -3,7 +3,7 @@ from datetime import datetime
 
 def getcodes(transaction):
     code = str()
-    tran_id = str(transaction.transaction_id).rjust(12,"0")
+    tran_id = str(transaction.transaction_id).rjust(7,"0")
     if transaction.transaction_status == transaction_statuses.uploaded_with_lender:
         code = transaction.transaction_upload_ts.strftime("%m%d%Y%H%M%S")+tran_id
     elif transaction.transaction_status == transaction_statuses.submitted_by_lender or transaction.transaction_status == transaction_statuses.pickup_by_borrower:
