@@ -693,18 +693,18 @@ def create_app():
                 book_dict['book_transaction_code'] = getcodes(book)
                 pickup_book_list.append(book_dict)
 
-                return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "All the books to be picked up",
-                                        "status" : True,
-                                        "response" : {
-                                            "pickup_book_list" : pickup_book_list
-                                        }
+            return make_response( 
+                            jsonify(
+                                {
+                                    "message" : "All the books to be picked up",
+                                    "status" : True,
+                                    "response" : {
+                                        "pickup_book_list" : pickup_book_list
                                     }
-                                ),
-                                200,
-                            )
+                                }
+                            ),
+                            200,
+                        )
 
 
     @app.route('/Store/transaction/dropoffs', methods=['POST'])
@@ -731,7 +731,6 @@ def create_app():
                                 200,
                             )
         else :
-            t = [temp.details() for temp in dropoff_books]
             dropoff_book_list = []
             for book in dropoff_books:
                 b = bookModel.query.filter_by(book_id = book.book_id).first()
@@ -739,19 +738,18 @@ def create_app():
                 book_dict['book_transaction_code'] = getcodes(book)
                 dropoff_book_list.append(book_dict)
 
-                return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "All the books to be dropped off",
-                                        "status" : True,
-                                        "response" : {
-                                            "dropoff_book_list" : dropoff_book_list,
-                                            "test" : t
-                                        }
+            return make_response( 
+                            jsonify(
+                                {
+                                    "message" : "All the books to be dropped off",
+                                    "status" : True,
+                                    "response" : {
+                                        "dropoff_book_list" : dropoff_book_list
                                     }
-                                ),
-                                200,
-                            )
+                                }
+                            ),
+                            200,
+                        )
                         
                     
     @app.route('/Store/transaction/getallbooks', methods=['POST'])
@@ -785,18 +783,18 @@ def create_app():
                 book_dict['book_transaction_code'] = getcodes(book)
                 book_list.append(book_dict)
 
-                return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "All the books in the store",
-                                        "status" : True,
-                                        "response" : {
-                                            "book_list" : book_list
-                                        }
+            return make_response( 
+                            jsonify(
+                                {
+                                    "message" : "All the books in the store",
+                                    "status" : True,
+                                    "response" : {
+                                        "book_list" : book_list
                                     }
-                                ),
-                                200,
-                            )
+                                }
+                            ),
+                            200,
+                        )
         
 
 
