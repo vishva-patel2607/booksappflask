@@ -731,6 +731,7 @@ def create_app():
                                 200,
                             )
         else :
+            t = [temp.details() for temp in dropoff_books]
             dropoff_book_list = []
             for book in dropoff_books:
                 b = bookModel.query.filter_by(book_id = book.book_id).first()
@@ -744,7 +745,8 @@ def create_app():
                                         "message" : "All the books to be dropped off",
                                         "status" : True,
                                         "response" : {
-                                            "pickup_book_list" : dropoff_book_list
+                                            "dropoff_book_list" : dropoff_book_list,
+                                            "test" : t
                                         }
                                     }
                                 ),
@@ -760,9 +762,10 @@ def create_app():
         store_id = data.get('store_id')
 
         books = transactionModel.\
-                        query.\
-                        filter(transactionModel.store_id == store_id).\
-                        all()
+                query.\
+                filter(transactionModel.store_id == store_id).\
+                filter( (transactionModel.transaction_status == transaction_statuses.submitted_by_lender) | (transactionModel.transaction_status == transaction_statuses.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.removed_by_lender)).\
+                all()
 
         if not books: 
             return make_response( 
@@ -785,10 +788,10 @@ def create_app():
                 return make_response( 
                                 jsonify(
                                     {
-                                        "message" : "All the books to be dropped off",
+                                        "message" : "All the books in the store",
                                         "status" : True,
                                         "response" : {
-                                            "pickup_book_list" : book_list
+                                            "book_list" : book_list
                                         }
                                     }
                                 ),
