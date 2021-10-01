@@ -17,7 +17,7 @@ from status import transaction_statuses,lender_transaction_statuses,store_transa
 from geoalchemy2.types import Geometry
 from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
-from transactioncodes import getcodes
+
 
 
 
@@ -297,7 +297,62 @@ def create_app():
                 201
             )
 
+    @app.route('/Book/Search', methods = ['POST'])
+    @token_required
+    def searchbooks(current_user):
 
+        data = request.get_json()
+
+        book_query = data.get("book_query")
+        longitude = data.get("longitude")
+        latitude = data.get("latitude")
+
+        query_string = "%"+book_query+"%"
+
+        books = bookModel.\
+                query.\
+                filter(bookModel.book_name.ilike(query_string)).\
+                filter(bookModel.usernumber != current_user.usernumber).\
+                all()
+
+        
+        if not books:
+            return make_response(
+                jsonify(
+                {
+                            "message" : "No books found!",
+                            "status" : True,
+                }
+                ),
+                201
+            )
+        else:
+            blist = []
+            for book in books:
+                status = transactionModel.query.filter_by(book_id = book.book_id).first()
+                if status.transaction_status == transaction_statuses.submitted_by_lender:
+                    book_dict = book.details()
+                    store = storeModel.query.filter_by(store_id = book.store_id).first()
+                    book_dict['store_distance'] = store.getdistance(longitude,latitude)
+                    blist.append(book_dict)
+            
+            booklist = sorted(blist, key=lambda k:k['store_distance'])
+
+            return make_response(
+                jsonify(
+                {
+                            "message" : "All the Books for given query",
+                            "status" : True,
+                            "response" : {
+                                "book_list" : booklist
+                            }
+                }
+                ),
+                201
+            )
+
+
+            
 
     @app.route('/Book/Upload',methods=['POST'])
     @token_required
@@ -380,7 +435,7 @@ def create_app():
             if status.transaction_status != transaction_statuses.pickup_by_lender:
                 book_dict = book.details()
                 book_dict['book_status'] = status.transaction_status
-                book_dict['book_transaction_code'] = getcodes(status)
+                book_dict['book_transaction_code'] = status.getcodes()
                 booklist.append(book_dict)
 
         
@@ -473,6 +528,215 @@ def create_app():
         )
 
 
+    @app.route('/Book/Pickedupbooks',methods=['POST'])
+    @token_required
+    def pickedupbooks(current_user):
+
+        transactions = transactionModel.\
+                        query.\
+                        filter(transactionModel.borrower_id == current_user.usernumber).\
+                        filter(transactionModel.transaction_status == transaction_statuses.borrowed_by_borrower).\
+                        all()
+        
+
+        booklist = [] 
+
+        for transaction in transactions:
+            book = bookModel.query.filter(bookModel.book_id == transaction.book_id).first()
+            store = storeModel.query.filter(storeModel.store_id == transaction.store_id).first()
+            book_dict = book.details()
+            book_dict['book_transaction_code'] = transaction.getcodes()
+            book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
+            book_dict['store'] = store.details()
+            booklist.append(book_dict)
+
+        
+
+        return make_response(
+            jsonify(
+                {
+                            "message" : "All the books for the user has picked up",
+                            "status" : True,
+                            "response" : {
+                                "books" : booklist
+                            }
+                }
+            ),
+            200
+        )
+
+    @app.route('/Book/Pickedupbooks/Added',methods=['POST'])
+    @token_required
+    def addedpickedupbooks(current_user):
+
+        transactions = transactionModel.\
+                        query.\
+                        filter(transactionModel.borrower_id == current_user.usernumber).\
+                        filter(transactionModel.transaction_status == transaction_statuses.pickup_by_borrower).\
+                        all()
+        
+
+        booklist = [] 
+
+        for transaction in transactions:
+            book = bookModel.query.filter(bookModel.book_id == transaction.book_id).first()
+            store = storeModel.query.filter(storeModel.store_id == transaction.store_id).first()
+            book_dict = book.details()
+            book_dict['book_transaction_code'] = transaction.getcodes()
+            book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
+            book_dict['store'] = store.details()
+            booklist.append(book_dict)
+
+        
+
+        return make_response(
+            jsonify(
+                {
+                            "message" : "All the books for the user has added to pick up",
+                            "status" : True,
+                            "response" : {
+                                "books" : booklist
+                            }
+                }
+            ),
+            200
+        )
+
+    @app.route('/Book/Pickedupbooks/Removed',methods=['POST'])
+    @token_required
+    def removedpickedupbooks(current_user):
+
+        transactions = transactionModel.\
+                        query.\
+                        filter(transactionModel.borrower_id == current_user.usernumber).\
+                        filter(transactionModel.transaction_status == transaction_statuses.return_by_borrower).\
+                        all()
+        
+
+        booklist = [] 
+
+        for transaction in transactions:
+            book = bookModel.query.filter(bookModel.book_id == transaction.book_id).first()
+            store = storeModel.query.filter(storeModel.store_id == transaction.store_id).first()
+            book_dict = book.details()
+            book_dict['book_transaction_code'] = transaction.getcodes()
+            book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
+            book_dict['store'] = store.details()
+            booklist.append(book_dict)
+
+        
+
+        return make_response(
+            jsonify(
+                {
+                            "message" : "All the books for the user has removed from pick up",
+                            "status" : True,
+                            "response" : {
+                                "books" : booklist
+                            }
+                }
+            ),
+            200
+        )
+
+    @app.route('/Book/Pickedupbooks/Remove',methods=['POST'])
+    @token_required
+    def removepickedupbooks(current_user):
+
+        data = request.get_json()
+        book_id = data.get('book_id')
+
+        transaction = transactionModel.\
+                        query.\
+                        filter(transactionModel.book_id == book_id).\
+                        first()
+        
+
+       
+        if transaction: 
+            if transaction.transaction_status == transaction_statuses.borrowed_by_borrower :
+                transaction.transaction_status = transaction_statuses.return_by_borrower
+                transaction.update()
+            elif transaction.transaction_status == transaction_statuses.pickup_by_borrower :
+                transaction.transaction_status = transaction_statuses.submitted_by_lender
+                transaction.borrower_id = None
+                transaction.update() 
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Pickup removed",
+                                "status" : True,
+                                "response" : {
+                                    "transaction" : transaction
+                                }
+                    }
+                ),
+                202
+            )
+
+        else :
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Error with removing pickup",
+                                "status" : True,
+                                "response" : {
+                                    "transaction" : transaction
+                                }
+                    }
+                ),
+                406
+            )
+
+
+    @app.route('/Book/Pickedupbooks/Add',methods=['POST'])
+    @token_required
+    def addpickedupbooks(current_user):
+
+        data = request.get_json()
+        book_id = data.get('book_id')
+
+        transaction = transactionModel.\
+                        query.\
+                        filter(transactionModel.book_id == book_id).\
+                        first()
+        
+
+       
+        if transaction: 
+            transaction.transaction_status = transaction_statuses.pickup_by_borrower
+            transaction.borrower_id = current_user.usernumber
+            transaction.borrower_transaction_status = borrower_transaction_statuses.pending
+            transaction.update()
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Pickup added",
+                                "status" : True,
+                                "response" : {
+                                    "transaction" : transaction
+                                }
+                    }
+                ),
+                202
+            )
+
+        else :
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Error with removing pickup",
+                                "status" : True,
+                                "response" : {
+                                    "transaction" : transaction
+                                }
+                    }
+                ),
+                406
+            )
+
+
+
     @app.route('/Store/Getstore', methods=['POST'])
     @token_required
     def getstores(current_user):
@@ -482,14 +746,13 @@ def create_app():
         longitude = data.get('longitude')
         latitude = data.get('latitude')
 
-        wkt = 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
+        wkt = storeModel.getwkt(longitude,latitude)
         shops = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText(wkt))).limit(10)
         
         retlist = []
         for shop in shops:
             shop_dict = shop.details()
-            shop_wkt = 'SRID=4326;POINT(%.8f %.8f)' % (shop_dict['store_longitude'],shop_dict['store_latitude'])
-            shop_dict['store_distance'] = db.session.query(func.ST_Distance(func.ST_GeographyFromText(wkt),func.ST_GeographyFromText(shop_wkt))).first()
+            shop_dict['store_distance'] = shop.getdistance(longitude,latitude)
             retlist.append(shop_dict)
 
 
@@ -662,7 +925,7 @@ def create_app():
 
 
         
-    @app.route('/Store/transaction/pickups', methods=['POST'])
+    @app.route('/Store/Books/Pickups', methods=['POST'])
     @token_required
     def getpickups(current_user):
         data = request.get_json()
@@ -690,7 +953,7 @@ def create_app():
             for book in pickup_books:
                 b = bookModel.query.filter_by(book_id = book.book_id).first()
                 book_dict = b.details()
-                book_dict['book_transaction_code'] = getcodes(book)
+                book_dict['book_transaction_code'] = book.getcodes()
                 pickup_book_list.append(book_dict)
 
             return make_response( 
@@ -707,7 +970,8 @@ def create_app():
                         )
 
 
-    @app.route('/Store/transaction/dropoffs', methods=['POST'])
+
+    @app.route('/Store/Books/Dropoffs', methods=['POST'])
     @token_required
     def getdropoffs(current_user):
         data = request.get_json()
@@ -735,7 +999,7 @@ def create_app():
             for book in dropoff_books:
                 b = bookModel.query.filter_by(book_id = book.book_id).first()
                 book_dict = b.details()
-                book_dict['book_transaction_code'] = getcodes(book)
+                book_dict['book_transaction_code'] = book.getcodes()
                 dropoff_book_list.append(book_dict)
 
             return make_response( 
@@ -752,7 +1016,7 @@ def create_app():
                         )
                         
                     
-    @app.route('/Store/transaction/getallbooks', methods=['POST'])
+    @app.route('/Store/Books/Getallbooks', methods=['POST'])
     @token_required
     def getallbooks(current_user):
         data = request.get_json()
@@ -780,7 +1044,7 @@ def create_app():
             for book in books:
                 b = bookModel.query.filter_by(book_id = book.book_id).first()
                 book_dict = b.details()
-                book_dict['book_transaction_code'] = getcodes(book)
+                book_dict['book_transaction_code'] = book.getcodes()
                 book_list.append(book_dict)
 
             return make_response( 
@@ -796,6 +1060,176 @@ def create_app():
                             200,
                         )
         
+
+    @app.route('/Store/Transaction/Dropoffpricing', methods=['POST'])
+    @token_required
+    def dropoffpricing(current_user):
+        data = request.get_json()
+        store_id = data.get('store_id')
+        book_id = data.get('book_id')
+
+        transaction =   transactionModel.\
+                        query.\
+                        filter(transactionModel.book_id == book_id).\
+                        filter(transactionModel.store_id == store_id).\
+                        first()
+        
+        
+        pricing = transaction.getdropoffpricing()
+
+        return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Dropoff pricing!",
+                                        "status" : True,
+                                        "response" : {
+                                            "pricing" : pricing
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
+
+
+    @app.route('/Store/Transaction/Confirmdropoff', methods=['POST'])
+    @token_required
+    def confirmdropoff(current_user):
+        data = request.get_json()
+        store_id = data.get('store_id')
+        book_id = data.get('book_id')
+
+        transaction =   transactionModel.\
+                        query.\
+                        filter(transactionModel.book_id == book_id).\
+                        filter(transactionModel.store_id == store_id).\
+                        first()
+
+        if not transaction : 
+            return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Error in transaction can't confirm dropoff!",
+                                        "status" : True,
+                                    }
+                                ),
+                                200,
+                            )
+        else : 
+            if transaction.transaction_status == transaction_statuses.uploaded_with_lender : 
+                transaction.transaction_status = transaction_statuses.submitted_by_lender
+                transaction.transaction_submit_ts = datetime.utcnow()
+                transaction.update()
+
+            elif transaction.transaction_statuses == transaction_statuses.return_by_borrower :
+                transaction.transaction_status = transaction_statuses.submitted_by_borrower
+                transaction.store_transaction_status = store_transaction_statuses.dropoff_by_borrower
+                transaction.borrower_transaction_status = borrower_transaction_statuses.dropoff_by_borrower
+                transaction.transaction_return_ts = datetime.utcnow()
+                transaction.update()
+            
+            return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Dropoff confirmed!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
+
+    @app.route('/Store/Transaction/Pickuppricing', methods=['POST'])
+    @token_required
+    def pickuppricing(current_user):
+        data = request.get_json()
+        store_id = data.get('store_id')
+        book_id = data.get('book_id')
+
+        transaction =   transactionModel.\
+                        query.\
+                        filter(transactionModel.book_id == book_id).\
+                        filter(transactionModel.store_id == store_id).\
+                        first()
+        
+        
+        pricing = transaction.getpickuppricing()
+
+        return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Dropoff confirmed!",
+                                        "status" : True,
+                                        "response" : {
+                                            "pricing" : pricing
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
+
+    @app.route('/Store/Transaction/Confirmpickup', methods=['POST'])
+    @token_required
+    def confirmpickup(current_user):
+
+        data = request.get_json()
+
+        store_id = data.get('store_id')
+        book_id = data.get('book_id')
+
+        transaction =   transactionModel.\
+                        query.\
+                        filter(transactionModel.book_id == book_id).\
+                        filter(transactionModel.store_id == store_id).\
+                        first()
+
+        if not transaction : 
+            return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Error in transaction can't confirm pickup!",
+                                        "status" : True,
+                                    }
+                                ),
+                                200,
+                            )
+        else :
+            
+            if transaction.transaction_status == transaction_statuses.pickup_by_borrower: 
+                transaction.transaction_status = transaction_statuses.borrowed_by_borrower
+                transaction.borrower_transaction_status = borrower_transaction_statuses.pickup_by_borrower
+                transaction.transaction_pickup_ts = datetime.utcnow()
+                transaction.update()
+
+            elif transaction.transaction_status == transaction_statuses.submitted_by_borrower:
+                transaction.transaction_status = transaction_statuses.pickup_by_lender
+                transaction.lender_transaction_status = lender_transaction_statuses.pickup_by_lender
+                transaction.store_transaction_status = store_transaction_statuses.pickup_by_lender
+                transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                transaction.update()
+
+            elif transaction.transaction_status == transaction_statuses.removed_by_lender:
+                transaction.transaction_status = transaction_statuses.pickup_by_lender
+                transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                transaction.update()
+
+            return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Pickup confirmed!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
+
+
+
+
 
 
 

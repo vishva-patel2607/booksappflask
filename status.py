@@ -12,20 +12,23 @@ class transaction_statuses:
 class lender_transaction_statuses:
     pending = "Pending"
     removed_by_lender = "Removed by lender, Transaction finished"
-
+    pickup_by_lender = "Received their share, Transaction finished"
 
 
 
 class store_transaction_statuses:
     pending = "Pending"
     removed_by_lender = "Removed by lender, Transaction finished"
+    dropoff_by_borrower = "Has lender and shop share"
+    pickup_by_lender = "Received their share, Transaction finished"
 
 
 
 
 class borrower_transaction_statuses:
     pending = "Pending"
-
+    dropoff_by_borrower = "Received their share, Transaction finished"
+    pickup_by_borrower = "Paid full book price"
 
 
 

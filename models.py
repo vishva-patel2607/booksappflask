@@ -9,6 +9,10 @@ from flask_cors import CORS
 from sqlalchemy import or_
 import os
 from geoalchemy2.types import Geometry
+from geoalchemy2.comparator import Comparator
+import geoalchemy2.functions as func
+from status import transaction_statuses
+from datetime import datetime, timedelta,date
 
 
 
@@ -198,6 +202,21 @@ class storeModel(db.Model):
     def update(self):
         db.session.commit()
 
+    def getdistance(self,longitude,latitude):
+        shop_wkt = self.getshopwkt()
+        wkt = self.getwkt(longitude,latitude)
+        distance = db.session.query(func.ST_Distance(func.ST_GeographyFromText(wkt),func.ST_GeographyFromText(shop_wkt))).first()
+        distance = distance/1000.0
+        return '%.2f' % (distance)
+
+    def getshopwkt(self):
+        return 'SRID=4326;POINT(%.8f %.8f)' % (self.store_longitude,self.store_latitude)
+    
+    def getwkt(self,longitude,latitude):
+        return 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
+
+
+
 
 class transactionModel(db.Model):
     __tablename__ = 'booksapp_transaction'
@@ -269,3 +288,93 @@ class transactionModel(db.Model):
 
     def update(self):
         db.session.commit()
+
+    def getcodes(self):
+        code = "code fetching error"
+        tran_id = str(self.transaction_id).rjust(7,"0")
+        if self.transaction_status == transaction_statuses.uploaded_with_lender:
+            code = self.transaction_upload_ts.strftime("%m%d%Y%H%M%S")+tran_id
+        elif self.transaction_status == transaction_statuses.submitted_by_lender or self.transaction_status == transaction_statuses.pickup_by_borrower:
+            code = self.transaction_submit_ts.strftime("%m%d%Y%H%M%S")+tran_id
+        elif self.transaction_status == transaction_statuses.borrowed_by_borrower or self.transaction_status == transaction_statuses.return_by_borrower or self.transaction_status == transaction_statuses.submitted_by_borrower:
+            code = self.transaction_pickup_ts.strftime("%m%d%Y%H%M%S")+tran_id
+        elif self.transaction_status == transaction_statuses.removed_by_lender:
+            code = self.transaction_return_ts.strftime("%m%d%Y%H%M%S")+tran_id
+        else :
+            code = self.transaction_lenderpickup_ts.strftime("%m%d%Y%H%M%S")+tran_id
+
+        return code
+
+    def getdropoffpricing(self):
+        pricing = dict()
+        if self.transaction_status == transaction_statuses.uploaded_with_lender:
+            pricing['lender']['pricing'] = 0
+            lender = userModel.query.filter_by(usernumber = self.lender_id).first()
+            pricing['lender']['name'] = lender.firstname + " " + lender.lastname
+            pricing['lender']['mode'] = 'pays'
+
+            pricing['store']['pricing'] = 0
+            store = storeModel.query.filter_by(store_id = self.store_id).first()
+            pricing['store']['name'] = store.store_name
+            pricing['store']['mode'] = 'receives'
+
+            pricing['borrower'] = None
+
+        elif self.transaction_status == transaction_statuses.return_by_borrower:
+            
+            pricing['borrower']['pricing'] = self.book_price - int(0.30*self.book_price)
+            borrower = userModel.query.filter_by(usernumber = self.borrower_id).first()
+            pricing['borrower']['name'] = borrower.firstname + " " + borrower.lastname
+            pricing['borrower']['mode'] = 'receives'
+
+            pricing['store']['pricing'] = int(0.30*self.book_price)
+            store = storeModel.query.filter_by(store_id = self.store_id).first()
+            pricing['store']['name'] = store.store_name
+            pricing['store']['mode'] = 'keeps'
+
+            pricing['lender'] = None
+        return pricing
+
+
+    def getpickuppricing(self):
+        pricing = dict()
+        if self.transaction_status == transaction_statuses.pickup_by_borrower:
+            pricing['borrower']['pricing'] = self.book_price
+            borrower = userModel.query.filter_by(usernumber = self.borrower_id).first()
+            pricing['borrower']['name'] = borrower.firstname + " " + borrower.lastname
+            pricing['borrower']['mode'] = 'pays'
+
+            pricing['store']['pricing'] = self.book_price
+            store = storeModel.query.filter_by(store_id = self.store_id).first()
+            pricing['store']['name'] = store.store_name
+            pricing['store']['mode'] = 'receives'
+
+            pricing['lender'] = None
+
+        elif self.transaction_status == transaction_statuses.submitted_by_borrower:
+            
+            pricing['lender']['pricing'] = int(0.15*self.book_price)
+            lender = userModel.query.filter_by(usernumber = self.lender_id).first()
+            pricing['lender']['name'] = lender.firstname + " " + lender.lastname
+            pricing['lender']['mode'] = 'receives'
+
+            pricing['store']['pricing'] = int(0.15*self.book_price)
+            store = storeModel.query.filter_by(store_id = self.store_id).first()
+            pricing['store']['name'] = store.store_name
+            pricing['store']['mode'] = 'pays'
+
+            pricing['borrower'] = None
+
+        elif self.transaction_status == transaction_statuses.removed_by_lender:
+            pricing['lender']['pricing'] = 0
+            lender = userModel.query.filter_by(usernumber = self.lender_id).first()
+            pricing['lender']['name'] = lender.firstname + " " + lender.lastname
+            pricing['lender']['mode'] = 'receives'
+
+            pricing['store']['pricing'] = 0
+            store = storeModel.query.filter_by(store_id = self.store_id).first()
+            pricing['store']['name'] = store.store_name
+            pricing['store']['mode'] = 'pays'
+
+            pricing['borrower'] = None
+        return pricing
