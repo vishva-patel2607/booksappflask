@@ -315,6 +315,8 @@ def create_app():
                 filter(bookModel.usernumber != current_user.usernumber).\
                 all()
 
+            
+
         
         if not books:
             return make_response(
@@ -714,7 +716,7 @@ def create_app():
                                 "message" : "Pickup added",
                                 "status" : True,
                                 "response" : {
-                                    "transaction" : transaction
+                                    "transaction" : transaction.details()
                                 }
                     }
                 ),
@@ -728,7 +730,7 @@ def create_app():
                                 "message" : "Error with removing pickup",
                                 "status" : True,
                                 "response" : {
-                                    "transaction" : transaction
+                                    "transaction" : transaction.details()
                                 }
                     }
                 ),

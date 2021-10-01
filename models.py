@@ -206,8 +206,8 @@ class storeModel(db.Model):
         shop_wkt = self.getshopwkt()
         wkt = self.getwkt(longitude,latitude)
         distance = db.session.query(func.ST_Distance(func.ST_GeographyFromText(wkt),func.ST_GeographyFromText(shop_wkt))).first()
-        distance = distance/1000.0
-        return '%.2f' % (distance)
+        d = distance[0]/1000.0
+        return '%.2f' % (d)
 
     def getshopwkt(self):
         return 'SRID=4326;POINT(%.8f %.8f)' % (self.store_longitude,self.store_latitude)
@@ -307,7 +307,11 @@ class transactionModel(db.Model):
 
     def getdropoffpricing(self):
         pricing = dict()
+        pricing['lender'] = dict()
+        pricing['store'] = dict()
+        pricing['borrower'] = dict()
         if self.transaction_status == transaction_statuses.uploaded_with_lender:
+
             pricing['lender']['pricing'] = 0
             lender = userModel.query.filter_by(usernumber = self.lender_id).first()
             pricing['lender']['name'] = lender.firstname + " " + lender.lastname
