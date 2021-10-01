@@ -585,7 +585,6 @@ def create_app():
             store = storeModel.query.filter(storeModel.store_id == transaction.store_id).first()
             book_dict = book.details()
             book_dict['book_transaction_code'] = transaction.getcodes()
-            book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
             book_dict['store'] = store.details()
             booklist.append(book_dict)
 
@@ -669,7 +668,7 @@ def create_app():
                                 "message" : "Pickup removed",
                                 "status" : True,
                                 "response" : {
-                                    "transaction" : transaction
+                                    "transaction" : transaction.details()
                                 }
                     }
                 ),
@@ -683,7 +682,7 @@ def create_app():
                                 "message" : "Error with removing pickup",
                                 "status" : True,
                                 "response" : {
-                                    "transaction" : transaction
+                                    "transaction" : transaction.details()
                                 }
                     }
                 ),
@@ -1122,7 +1121,7 @@ def create_app():
                 transaction.transaction_submit_ts = datetime.utcnow()
                 transaction.update()
 
-            elif transaction.transaction_statuses == transaction_statuses.return_by_borrower :
+            elif transaction.transaction_status == transaction_statuses.return_by_borrower :
                 transaction.transaction_status = transaction_statuses.submitted_by_borrower
                 transaction.store_transaction_status = store_transaction_statuses.dropoff_by_borrower
                 transaction.borrower_transaction_status = borrower_transaction_statuses.dropoff_by_borrower

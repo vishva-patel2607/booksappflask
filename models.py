@@ -342,6 +342,9 @@ class transactionModel(db.Model):
 
     def getpickuppricing(self):
         pricing = dict()
+        pricing['lender'] = dict()
+        pricing['store'] = dict()
+        pricing['borrower'] = dict()
         if self.transaction_status == transaction_statuses.pickup_by_borrower:
             pricing['borrower']['pricing'] = self.book_price
             borrower = userModel.query.filter_by(usernumber = self.borrower_id).first()
