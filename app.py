@@ -747,7 +747,7 @@ def create_app():
         longitude = data.get('longitude')
         latitude = data.get('latitude')
 
-        wkt = storeModel.getwkt(longitude=longitude,latitude=latitude)
+        wkt = 'SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude)
         shops = storeModel.query.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText(wkt))).limit(10)
         
         retlist = []
