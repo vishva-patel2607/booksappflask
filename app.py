@@ -1,9 +1,11 @@
 import os
 from flask import Flask,render_template, request, abort, jsonify ,make_response
+from flask.helpers import url_for
 from flask_cors import CORS
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.type_api import NULLTYPE
 from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db
+from mail import Mailer
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 import uuid
@@ -20,12 +22,6 @@ import geoalchemy2.functions as func
 
 
 
-
-
-
-
-temp = [{"hello" : "Why are you"},{"hello2" : "how are ypo2"}]
-
 BUCKET = "booksapp-image-data"
 BOOK_UPLOAD_FOLDER = "uploads"
 BUCKET_LINK = "https://"+BUCKET+".s3.ap-south-1.amazonaws.com/book-image-folder/"
@@ -33,12 +29,16 @@ BUCKET_LINK = "https://"+BUCKET+".s3.ap-south-1.amazonaws.com/book-image-folder/
 def create_app():
     app = Flask(__name__)
 
-    
+    app.config['SECRET_KEY'] = "patel gang"
 
 
     setup_db(app)
 
+    mailer = Mailer(app)
+
     CORS(app)
+
+    
 
     '''
     commment after run 
@@ -122,6 +122,7 @@ def create_app():
 
         user = userModel.query.filter_by(username = auth.get('username')).first()
 
+
         if not user:
             return make_response( 
                     jsonify(
@@ -133,6 +134,38 @@ def create_app():
                     401,
                     {'WWW-Authenticate' : 'User does not exist'}
                 )
+        
+        storeuser = storeModel.query.filter_by(usernumber = user.usernumber).first()
+        if storeuser:
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Store owners cannot access this App with the same account!",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'User does not exist'}
+                )
+            
+        if not user.verified:
+            token = jwt.encode({
+                'usernumber': user.usernumber,
+                'exp': datetime.utcnow() + timedelta(minutes = 30)
+            },app.config['SECRET_KEY'],algorithm="HS256")
+
+            url = url_for('verifyuser',token = token)
+            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+            return make_response(
+                    jsonify(
+                        {
+                            "message" : "User is not verified",
+                            "status" : False,
+                        }
+                    ),
+                    201
+                )
+
 
         if check_password_hash(user.password, auth.get('password')):
             token = jwt.encode({
@@ -155,6 +188,8 @@ def create_app():
                     ),
                     201
                 )
+
+       
 
         return make_response( 
                     jsonify(
@@ -209,10 +244,18 @@ def create_app():
                 firstname = firstname,
                 lastname = lastname,
                 dob = dob,
-                phonenumber = phonenumber
+                phonenumber = phonenumber,
+                created_on=datetime.utcnow()
             )
 
             user.insert()
+            token = jwt.encode({
+                'usernumber': user.usernumber,
+                'exp': datetime.utcnow() + timedelta(minutes = 30)
+            },app.config['SECRET_KEY'],algorithm="HS256")
+
+            url = url_for('verifyuser',token = token)
+            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
 
             return make_response(
                 jsonify(
@@ -237,6 +280,110 @@ def create_app():
                 400,
                 {'WWW-Authenticate' : 'User already exists'}
             )
+
+    @app.route('/User/Verify/User/<token>',methods = ['GET'])
+    def verifyuser(token):
+        try:
+            data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
+            user = userModel.query.filter_by(usernumber = data['usernumber']).first()
+            user.verified_on = datetime.utcnow()
+            if user.created_on == None:
+                user.verified_on = datetime.utcnow()
+            user.update()
+            return render_template('verifiedTokenEmail.html',msg = "The Account has been verified!")
+        except:
+            return render_template('verifiedTokenEmail.html',msg='Account could not be verified by this link try to login again with your account in the app to get a new link!')
+
+    @app.route('/User/Verify/Changepassword/<token>',methods = ['GET'])
+    def verifychangepassword(token):
+        try:
+            data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
+            url = url_for('resetpassword',token = token)
+            return render_template('verifiedTokenPassword.html',url = url)
+        except:
+            return render_template('notverifiedTokenPassword.html')
+
+
+    @app.route('/User/Forgotpassword',methods=['POST'])
+    def forgotpassword():
+        data = request.get_json()
+
+        username = data.get('username')
+
+        user = userModel.query.filter_by(username = username).first()
+        
+        if not user:
+            return make_response(
+                jsonify(
+                        {
+                            "message" : "Username does not exist!",
+                            "status" : False,
+                        }
+                    ),
+                400,
+            )
+        
+        else: 
+            if not user.verified:
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "User not verified",
+                                "status" : False,
+                            }
+                        ),
+                    400,
+                )
+            
+            else: 
+            
+                store = storeModel.query.filter_by(usernumber = user.usernumber).first()
+
+                if store:
+                    return make_response(
+                        jsonify(
+                                {
+                                    "message" : "Accounts linked to stores cannot be used in the app",
+                                    "status" : False,
+                                }
+                            ),
+                        400,
+                    )
+                
+                else:
+                    
+                    token = jwt.encode({
+                        'usernumber': user.usernumber,
+                        'exp': datetime.utcnow() + timedelta(minutes = 30)
+                    },app.config['SECRET_KEY'],algorithm="HS256")
+
+                    url = url_for('verifychangepassword',token = token)
+                    mailer.sendchangepasswordmail(user.email,'verifyTokenPassword.html',url)
+                    return make_response(
+                            jsonify(
+                                    {
+                                        "message" : "A link to change your password is sent to your registered email address",
+                                        "status" : True,
+                                    }
+                                ),
+                            201,
+                            {'WWW-Authenticate' : 'Registration successful'}
+                        )
+
+        
+      
+    @app.route('/User/Resetpassword/<token>',methods=['POST'])
+    def resetpassword(token):
+        try:
+            data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
+            newpassword = request.form.get('password')
+
+            user = userModel.query.filter_by(usernumber = data['usernumber']).first()
+
+            user.password = generate_password_hash(newpassword)
+            return render_template('verifiedTokenEmail.html',msg = "The password has been updated")
+        except:
+            return render_template('verifiedTokenEmail.html',msg = "The password could not be changed")
 
 
 
@@ -1231,12 +1378,81 @@ def create_app():
 
 
 
+    @app.route('/Store/Transaction/Pendingpayments', methods=['POST'])
+    @token_required
+    def pendingpayments(current_user):
+        data = request.get_json()
+
+        store_id = data.get('store_id')
+
+        transactions =   transactionModel.\
+                        query.\
+                        filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
+                        all()
+
+        transactionlist = []
+        total_payment = 0
+
+        for transaction in transactions:
+            trandict = transaction.details()
+            pay = transaction.getbooksapppaymentprincing()
+            trandict['store_payment'] = pay
+            total_payment += pay
+            transactionlist.append(trandict)
+
+
+        return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "All the pending payments!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transactions" : transactionlist,
+                                            "totalpayment" : total_payment
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
+
+
+    @app.route('/Store/Transaction/Pendingpaymentspaid', methods=['POST'])
+    @token_required
+    def pendingpaymentspaid(current_user):
+        data = request.get_json()
+
+        store_id = data.get('store_id')
+
+        transactions =   transactionModel.\
+                        query.\
+                        filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
+                        all()
+
+
+        for transaction in transactions:
+            transaction.store_transaction_status = store_transaction_statuses.payment_collected
+            transaction.update()
+
+        return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "Payments received!",
+                                        "status" : True,
+                                    }
+                                ),
+                                200,
+                            )
+
+        
+
 
 
 
     @app.route('/',methods=['GET'])
     def hello():
-        return jsonify({"hello": temp})
+        return render_template('index.html')
 
 
 

@@ -21,6 +21,7 @@ class store_transaction_statuses:
     removed_by_lender = "Removed by lender, Transaction finished"
     dropoff_by_borrower = "Has lender and shop share"
     pickup_by_lender = "Received their share, Transaction finished"
+    payment_collected = "Collected payment from shop"
 
 
 

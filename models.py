@@ -33,7 +33,7 @@ def setup_db(app):
     database_path = os.getenv('DATABASE_URL', default_database_path)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config['SECRET_KEY'] = "patel gang"
+    
     db.app = app
     db.init_app(app)
 
@@ -55,9 +55,12 @@ class userModel(db.Model):
     lastname = db.Column(db.String(20),nullable=False)
     dob = db.Column(db.Date,nullable=False)
     phonenumber = db.Column(db.String(20),nullable=False)
+    verified = db.Column(db.Boolean, nullable=False, default=False)
+    verified_on = db.Column(db.DateTime, nullable=True)
+    created_on = db.Column(db.DateTime, nullable=True)
 
 
-    def __init__(self, username, password,email , firstname, lastname, dob, phonenumber):
+    def __init__(self, username, password,email , firstname, lastname, dob, phonenumber,created_on):
         self.username = username
         self.password = password
         self.email = email
@@ -65,6 +68,7 @@ class userModel(db.Model):
         self.lastname = lastname
         self.dob = dob
         self.phonenumber = phonenumber
+        self.created_on = created_on
 
 
     def details(self):
@@ -385,3 +389,10 @@ class transactionModel(db.Model):
 
             pricing['borrower'] = None
         return pricing
+        
+    
+    def getbooksapppaymentprincing(self):
+        return int(0.05*self.book_price)
+
+
+
