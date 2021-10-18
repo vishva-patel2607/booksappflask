@@ -12,8 +12,8 @@ class Mailer:
         app.config['MAIL_SERVER'] = 'smtp.gmail.com'
         app.config['MAIL_PORT'] = 465
         app.config['MAIL_USE_SSL'] = True
-        app.config['MAIL_USERNAME'] = "username@gmail.com"
-        app.config['MAIL_PASSWORD'] = "password"
+        app.config['MAIL_USERNAME'] = "booksapp2021@gmail.com"
+        app.config['MAIL_PASSWORD'] = "Abc@18bce260"
         self.mail = Mail(app)
         self.sender = app.config['MAIL_USERNAME']
 

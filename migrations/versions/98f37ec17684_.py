@@ -23,6 +23,8 @@ def upgrade():
     op.add_column('booksapp_users', sa.Column('verified', sa.Boolean(), nullable=False))
     op.add_column('booksapp_users', sa.Column('verified_on', sa.DateTime(), nullable=True))
     op.add_column('booksapp_users', sa.Column('created_on', sa.DateTime(), nullable=True))
+    op.execute("UPDATE booksapp_users SET verified = false")
+    op.alter_column('booksapp_users', 'verified', nullable=False)
     # ### end Alembic commands ###
 
 
