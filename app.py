@@ -421,6 +421,7 @@ def create_app():
             user = userModel.query.filter_by(usernumber = data['usernumber']).first()
 
             user.password = generate_password_hash(newpassword)
+            user.update()
             return render_template('verifiedTokenEmail.html',msg = "The password has been updated")
         except:
             return render_template('verifiedTokenEmail.html',msg = "The password could not be changed")
