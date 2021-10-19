@@ -31,7 +31,8 @@ def create_app():
     app = Flask(__name__)
 
     app.config['SECRET_KEY'] = "patel gang"
-
+    app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     setup_db(app)
 
@@ -159,7 +160,7 @@ def create_app():
                 },app.config['SECRET_KEY'],algorithm="HS256")
 
 
-                url = url_for('verifyuser',token = token)
+                url = url_for('verifyuser',token = token,_external=True)
                 mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
                 return make_response(
                         jsonify(
@@ -261,7 +262,7 @@ def create_app():
                 'exp': datetime.utcnow() + timedelta(minutes = 30)
             },app.config['SECRET_KEY'],algorithm="HS256")
 
-            url = url_for('verifyuser',token = token)
+            url = url_for('verifyuser',token = token,_external=True)
             mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
 
             return make_response(
@@ -306,7 +307,7 @@ def create_app():
     def verifychangepassword(token):
         try:
             data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
-            url = url_for('resetpassword',token = token)
+            url = url_for('resetpassword',token = token,_external=True)
             return render_template('verifiedTokenPassword.html',url = url)
         except:
             return render_template('notverifiedTokenPassword.html')
@@ -396,7 +397,7 @@ def create_app():
                         'exp': datetime.utcnow() + timedelta(minutes = 30)
                     },app.config['SECRET_KEY'],algorithm="HS256")
 
-                    url = url_for('verifychangepassword',token = token)
+                    url = url_for('verifychangepassword',token = token,_external=True)
                     mailer.sendchangepasswordmail(user.email,'verifyTokenPassword.html',url)
                     return make_response(
                             jsonify(
