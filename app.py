@@ -2,6 +2,7 @@ import os
 from flask import Flask,render_template, request, abort, jsonify ,make_response
 from flask.helpers import url_for
 from flask_cors import CORS
+from sqlalchemy.sql.expression import true
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.type_api import NULLTYPE
 from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db
@@ -292,6 +293,7 @@ def create_app():
         try:
             data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
             user = userModel.query.filter_by(usernumber = data['usernumber']).first()
+            user.verified = True
             user.verified_on = datetime.utcnow()
             if user.created_on == None:
                 user.verified_on = datetime.utcnow()
