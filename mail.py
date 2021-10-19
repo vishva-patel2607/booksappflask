@@ -24,6 +24,7 @@ class Mailer:
             html=render_template(template,url = url), 
             sender=self.sender, 
             )
+        self.mail.send(msg)
 
     def sendchangepasswordmail(self,recepient,template,url):
         msg = Message(
@@ -32,6 +33,7 @@ class Mailer:
             html=render_template(template,url = url), 
             sender=self.sender, 
             )
+        self.mail.send(msg)
         
 
      
