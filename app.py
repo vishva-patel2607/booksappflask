@@ -363,7 +363,7 @@ def create_app():
             )
         
         else: 
-            if not user.verified:
+            if not user.verified or user.verified == None:
                 return make_response(
                     jsonify(
                             {
