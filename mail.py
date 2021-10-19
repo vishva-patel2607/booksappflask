@@ -20,7 +20,7 @@ class Mailer:
     def sendverifymail(self,recepient,template,url):
         msg = Message(
             subject='Verify your account and email address', 
-            recipients=recepient, 
+            recipients=[recepient], 
             html=render_template(template,url = url), 
             sender=self.sender, 
             )
@@ -29,7 +29,7 @@ class Mailer:
     def sendchangepasswordmail(self,recepient,template,url):
         msg = Message(
             subject='Change password of your account', 
-            recipients=recepient, 
+            recipients=[recepient], 
             html=render_template(template,url = url), 
             sender=self.sender, 
             )
