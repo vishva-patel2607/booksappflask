@@ -21,7 +21,7 @@ class Mailer:
         msg = Message(
             subject='Verify your account and email address', 
             recipients=recepient, 
-            html=render_template(template,url), 
+            html=render_template(template,url = url), 
             sender=self.sender, 
             )
 
@@ -29,7 +29,7 @@ class Mailer:
         msg = Message(
             subject='Change password of your account', 
             recipients=recepient, 
-            html=render_template(template,url), 
+            html=render_template(template,url = url), 
             sender=self.sender, 
             )
         
