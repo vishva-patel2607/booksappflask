@@ -148,26 +148,32 @@ def create_app():
                     {'WWW-Authenticate' : 'User does not exist'}
                 )
             
-        if not user.verified:
-            token = jwt.encode({
-                'usernumber': user.usernumber,
-                'exp': datetime.utcnow() + timedelta(minutes = 30)
-            },app.config['SECRET_KEY'],algorithm="HS256")
-
-            url = url_for('verifyuser',token = token)
-            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
-            return make_response(
-                    jsonify(
-                        {
-                            "message" : "User is not verified",
-                            "status" : False,
-                        }
-                    ),
-                    201
-                )
 
 
         if check_password_hash(user.password, auth.get('password')):
+            if not user.verified or user.verified == None:
+                token = jwt.encode({
+                    'usernumber': user.usernumber,
+                    'exp': datetime.utcnow() + timedelta(minutes = 30)
+                },app.config['SECRET_KEY'],algorithm="HS256")
+
+
+                url = url_for('verifyuser',token = token)
+                mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+                return make_response(
+                        jsonify(
+                            {
+                                "message" : "User is not verified",
+                                "status" : False,
+                                "response" : {
+
+                                            "token" : token,
+                                            "email" : user.email,
+                                        }
+                            }
+                        ),
+                        201
+                    )
             token = jwt.encode({
                 'usernumber': user.usernumber,
                 'exp': datetime.utcnow() + timedelta(minutes = 1000)
@@ -302,6 +308,37 @@ def create_app():
             return render_template('verifiedTokenPassword.html',url = url)
         except:
             return render_template('notverifiedTokenPassword.html')
+
+
+    @app.route('/User/Changeemail',methods=['POST'])
+    @token_required
+    def changeemail(current_user):
+
+        data = request.get_json()
+        newemail = data.get('email')
+
+        current_user.email = newemail
+        current_user.update()
+
+        token = jwt.encode({
+                    'usernumber': current_user.usernumber,
+                    'exp': datetime.utcnow() + timedelta(minutes = 30)
+                },app.config['SECRET_KEY'],algorithm="HS256")
+
+
+        url = url_for('verifyuser',token = token)
+        mailer.sendverifymail(current_user.email,'verifyTokenEmail.html',url)
+
+        return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Email Changed and a verification mail is sent",
+                            "status" : True,
+                        }
+                    ),
+                    201
+                )
+
 
 
     @app.route('/User/Forgotpassword',methods=['POST'])

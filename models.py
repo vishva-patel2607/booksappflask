@@ -55,7 +55,7 @@ class userModel(db.Model):
     lastname = db.Column(db.String(20),nullable=False)
     dob = db.Column(db.Date,nullable=False)
     phonenumber = db.Column(db.String(20),nullable=False)
-    verified = db.Column(db.Boolean, nullable=False, default=False)
+    verified = db.Column(db.Boolean, nullable=True)
     verified_on = db.Column(db.DateTime, nullable=True)
     created_on = db.Column(db.DateTime, nullable=True)
 
