@@ -20,12 +20,18 @@ from status import transaction_statuses,lender_transaction_statuses,store_transa
 from geoalchemy2.types import Geometry
 from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
-
+import enum
 
 
 BUCKET = "booksapp-image-data"
 BOOK_UPLOAD_FOLDER = "uploads"
 BUCKET_LINK = "https://"+BUCKET+".s3.ap-south-1.amazonaws.com/book-image-folder/"
+
+class Usertype (enum.Enum):
+    user = 1
+    store = 2
+    admin = 3
+
 
 def create_app():
     app = Flask(__name__)
@@ -125,24 +131,11 @@ def create_app():
         user = userModel.query.filter_by(username = auth.get('username')).first()
 
 
-        if not user:
+        if not user or user.usertype != Usertype.user.name:
             return make_response( 
                     jsonify(
                         {
                             "message" : "User does not exist",
-                            "status" : False,
-                        }
-                    ),
-                    401,
-                    {'WWW-Authenticate' : 'User does not exist'}
-                )
-        
-        storeuser = storeModel.query.filter_by(usernumber = user.usernumber).first()
-        if storeuser:
-            return make_response( 
-                    jsonify(
-                        {
-                            "message" : "Store owners cannot access this App with the same account!",
                             "status" : False,
                         }
                     ),
@@ -253,7 +246,8 @@ def create_app():
                 lastname = lastname,
                 dob = dob,
                 phonenumber = phonenumber,
-                created_on=datetime.utcnow()
+                created_on=datetime.utcnow(),
+                usertype = Usertype.user.name
             )
 
             user.insert()
@@ -303,6 +297,9 @@ def create_app():
         except:
             return render_template('verifiedTokenEmail.html',msg='Account could not be verified by this link try to login again with your account in the app to get a new link!')
 
+    
+    
+    
     @app.route('/User/Verify/Changepassword/<token>',methods = ['GET'])
     def verifychangepassword(token):
         try:
@@ -313,6 +310,9 @@ def create_app():
             return render_template('notverifiedTokenPassword.html')
 
 
+    
+    
+    
     @app.route('/User/Changeemail',methods=['POST'])
     @token_required
     def changeemail(current_user):
@@ -987,9 +987,45 @@ def create_app():
         
 
 
-    @app.route('/Store/User/Signup', methods=['POST'])
+    @app.route('/Store/Signup', methods=['POST'])
     @token_required
     def signupstore(current_user):
+
+        if current_user.usertype != Usertype.store.name:
+            return make_response(
+                    jsonify(
+                        {
+                            "message" : "User is not authorized to signup for store",
+                            "status" : False,
+                        }
+                    ),
+                    201
+                )
+
+        if not current_user.verified or current_user.verified == None:
+            token = jwt.encode({
+                'usernumber': current_user.usernumber,
+                'exp': datetime.utcnow() + timedelta(minutes = 30)
+            },app.config['SECRET_KEY'],algorithm="HS256")
+
+
+            url = url_for('verifyuser',token = token,_external=True)
+            mailer.sendverifymail(current_user.email,'verifyTokenEmail.html',url)
+            return make_response(
+                    jsonify(
+                        {
+                            "message" : "User is not verified",
+                            "status" : False,
+                            "response" : {
+
+                                        "token" : token,
+                                        "email" : current_user.email,
+                                    }
+                        }
+                    ),
+                    201
+                )
+
 
         data = request.get_json()
         usernumber = current_user.usernumber
@@ -1030,7 +1066,84 @@ def create_app():
         )
     
     
-    
+    @app.route('/Store/User/Signup', methods=['POST'])
+    def signupstoreuser():
+        data = request.get_json()
+
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        firstname = data.get('firstname')
+        lastname = data.get('lastname')
+        year = data.get('year')
+        month = data.get('month')
+        day = data.get('day')
+        phonenumber = data.get('phonenumber')
+
+        
+        try:
+            dob = date(int(year),int(month),int(day))
+        except:
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Invalid Date",
+                            "status" : False,
+                        }
+                    ),
+                    400
+                )
+
+        
+        user_username = userModel.query.filter_by(username = username).first()
+        user_email = userModel.query.filter_by(email = email).first()
+
+        if not user_username and not user_email:
+
+            user = userModel(
+                username = username,
+                password = generate_password_hash(password),
+                email = email,
+                firstname = firstname,
+                lastname = lastname,
+                dob = dob,
+                phonenumber = phonenumber,
+                created_on=datetime.utcnow(),
+                usertype = Usertype.store.name
+            )
+
+            user.insert()
+            token = jwt.encode({
+                'usernumber': user.usernumber,
+                'exp': datetime.utcnow() + timedelta(minutes = 30)
+            },app.config['SECRET_KEY'],algorithm="HS256")
+
+            url = url_for('verifyuser',token = token,_external=True)
+            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+
+            return make_response(
+                jsonify(
+                        {
+                            "message" : "Registration successful",
+                            "status" : True,
+                        }
+                    ),
+                201,
+                {'WWW-Authenticate' : 'Registration successful'}
+            )
+
+
+        else:
+            return make_response(
+                jsonify(
+                        {
+                            "message" : "User already exists",
+                            "status" : False,
+                        }
+                    ),
+                400,
+                {'WWW-Authenticate' : 'User already exists'}
+            )
     
 
 
@@ -1052,7 +1165,7 @@ def create_app():
 
         user = userModel.query.filter_by(username = auth.get('username')).first()
 
-        if not user:
+        if not user or user.usertype != Usertype.store.name:
             return make_response( 
                     jsonify(
                         {
@@ -1063,54 +1176,65 @@ def create_app():
                     401,
                     {'WWW-Authenticate' : 'User does not exist'}
                 )
-        else:
-            store = storeModel.query.filter_by(usernumber = user.usernumber).first()
+        elif user.verified and user.verified != None:
+            
+            if check_password_hash(user.password, auth.get('password')):
+                token = jwt.encode({
+                    'usernumber': user.usernumber,
+                    'exp': datetime.utcnow() + timedelta(minutes = 1000)
+                },app.config['SECRET_KEY'],algorithm="HS256")
 
-            if not store:
+                store = storeModel.query.filter_by(usernumber = user.usernumber).first()
                 return make_response(
-                    jsonify(
-                        {
-                            "message" : "User is not a registered store",
-                            "status" : False,
-                        }
-                    ),
-                    401,
-                    {'WWW-Authenticate' : "User is not a registered store"}
-                )
-            else :
-                if check_password_hash(user.password, auth.get('password')):
-                    token = jwt.encode({
-                        'usernumber': user.usernumber,
-                        'exp': datetime.utcnow() + timedelta(minutes = 1000)
-                    },app.config['SECRET_KEY'],algorithm="HS256")
+                        jsonify(
+                            {
+                                "message" : "Log In successfull",
+                                "status" : True,
+                                "response" : {
 
-                    return make_response(
+                                                "token" : token,
+                                                "username" : user.username,
+                                                "usernumber" : user.usernumber,
+                                                "store_id" : store.store_id 
+                                            }
+                            }
+                        ),
+                        201
+                    )
+            else:
+                return make_response( 
                             jsonify(
                                 {
-                                    "message" : "Log In successfull",
-                                    "status" : True,
-                                    "response" : {
-
-                                                    "token" : token,
-                                                    "username" : user.username,
-                                                    "usernumber" : user.usernumber,
-                                                    "store_id" : store.store_id 
-                                                }
+                                    "message" : "Incorrect password",
+                                    "status" : False,
                                 }
                             ),
-                            201
+                            401,
+                            {'WWW-Authenticate' : 'Incorrect password'}
                         )
-                else:
-                    return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "Incorrect password",
-                                        "status" : False,
+        else:
+            token = jwt.encode({
+                    'usernumber': user.usernumber,
+                    'exp': datetime.utcnow() + timedelta(minutes = 30)
+                },app.config['SECRET_KEY'],algorithm="HS256")
+
+
+            url = url_for('verifyuser',token = token,_external=True)
+            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+            return make_response(
+                    jsonify(
+                        {
+                            "message" : "User is not verified",
+                            "status" : False,
+                            "response" : {
+
+                                        "token" : token,
+                                        "email" : user.email,
                                     }
-                                ),
-                                401,
-                                {'WWW-Authenticate' : 'Incorrect password'}
-                            )
+                        }
+                    ),
+                    201
+                )
 
 
         

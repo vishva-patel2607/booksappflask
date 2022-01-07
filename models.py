@@ -58,9 +58,10 @@ class userModel(db.Model):
     verified = db.Column(db.Boolean, nullable=True)
     verified_on = db.Column(db.DateTime, nullable=True)
     created_on = db.Column(db.DateTime, nullable=True)
+    usertype = db.Column(db.String(50))
 
 
-    def __init__(self, username, password,email , firstname, lastname, dob, phonenumber,created_on):
+    def __init__(self, username, password,email , firstname, lastname, dob, phonenumber,created_on,usertype):
         self.username = username
         self.password = password
         self.email = email
@@ -69,6 +70,7 @@ class userModel(db.Model):
         self.dob = dob
         self.phonenumber = phonenumber
         self.created_on = created_on
+        self.usertype = usertype
 
 
     def details(self):
@@ -80,7 +82,8 @@ class userModel(db.Model):
             'firstname': self.firstname,
             'lastname': self.lastname,
             'dob': self.dob,
-            'phonenumber': self.phonenumber
+            'phonenumber': self.phonenumber,
+            'usertype': self.usertype
         }
 
     def insert(self):
