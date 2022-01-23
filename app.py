@@ -575,7 +575,7 @@ def create_app():
         book_year = request.form.get("book_year")
         book_condition = request.form.get("book_condition")
         book_img = request.files['book_img']
-        book_price = request.form.get('book_price')
+        book_price = int(request.form.get('book_price'))
         store_id = request.form.get('store_id')
         usernumber = current_user.usernumber
         book_author = request.form.get('book_author')
@@ -676,7 +676,7 @@ def create_app():
         book_id = data.get('book_id')
         book_name = data.get('book_name')
         book_author = data.get('book_author')
-        book_price = data.get('book_price')
+        book_price = int(data.get('book_price'))
         book_condition = data.get('book_condition')
         book_year = data.get('book_year')
 
@@ -684,7 +684,7 @@ def create_app():
 
         book.book_name = book_name
         book.book_author = book_author
-        book.book_price = int(book_price)
+        book.book_price = book_price
         book.book_condition = book_condition
         book.book_year = book_year
         book.setprice()
