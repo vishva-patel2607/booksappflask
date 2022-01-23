@@ -263,7 +263,7 @@ class transactionModel(db.Model):
         self.transaction_pickup_ts = transaction_pickup_ts
         self.transaction_return_ts = transaction_return_ts
         self.transaction_lenderpickup_ts = transaction_lenderpickup_ts
-        self.setpricing(book_price)
+        self.setpricing()
 
 
     def details(self):
@@ -321,11 +321,11 @@ class transactionModel(db.Model):
 
         return code
 
-    def setpricing(self,book_price):
-        self.borrower_price = int(0.3*book_price)
-        self.lender_cost = int(0.15*book_price)
-        self.store_cost = int(0.10*book_price)
-        self.company_cost = int(0.05*book_price)
+    def setpricing(self):
+        self.borrower_price = int(0.3*self.book_price)
+        self.lender_cost = int(0.15*self.book_price)
+        self.store_cost = int(0.10*self.book_price)
+        self.company_cost = int(0.05*self.book_price)
 
     def getdropoffpricing(self):
         pricing = dict()
