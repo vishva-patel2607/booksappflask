@@ -684,7 +684,7 @@ def create_app():
 
         book.book_name = book_name
         book.book_author = book_author
-        book.book_price = book_price
+        book.book_price = int(book_price)
         book.book_condition = book_condition
         book.book_year = book_year
         book.setprice()
