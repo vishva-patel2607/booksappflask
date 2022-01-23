@@ -29,7 +29,7 @@ db = SQLAlchemy()
 
 def setup_db(app):
     database_name ='booksapp'
-    default_database_path= "postgres://{}:{}@{}/{}".format('postgres', 'VPp@26072000', 'localhost:5432', database_name)
+    default_database_path= "postgres://{}:{}@{}/{}".format('postgres', 'postgres', 'localhost:5432', database_name)
     database_path = os.getenv('DATABASE_URL', default_database_path)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -237,6 +237,10 @@ class transactionModel(db.Model):
     store_transaction_status = db.Column(db.String(100))
     borrower_transaction_status = db.Column(db.String(100))
     book_price = db.Column(db.BigInteger,nullable=False)
+    borrower_price = db.Column(db.BigInteger)
+    lender_cost = db.Column(db.BigInteger)
+    store_cost = db.Column(db.BigInteger)
+    company_cost = db.Column(db.BigInteger)
     transaction_upload_ts = db.Column(db.DateTime)
     transaction_submit_ts = db.Column(db.DateTime)
     transaction_pickup_ts = db.Column(db.DateTime)
@@ -259,6 +263,7 @@ class transactionModel(db.Model):
         self.transaction_pickup_ts = transaction_pickup_ts
         self.transaction_return_ts = transaction_return_ts
         self.transaction_lenderpickup_ts = transaction_lenderpickup_ts
+        self.setpricing(book_price)
 
 
     def details(self):
@@ -273,6 +278,10 @@ class transactionModel(db.Model):
             "store_transaction_status" : self.store_transaction_status,
             "borrower_transaction_status" : self.borrower_transaction_status,
             "book_price" : self.book_price,
+            "borrower_price": self.borrower_price,
+            "lender_cost" : self.lender_cost,
+            "store_cost" : self.store_cost,
+            "company_cost" : self.company_cost,
             "transaction_upload_ts" : self.transaction_upload_ts,
             "transaction_submit_ts" : self.transaction_submit_ts,
             "transaction_pickup_ts" : self.transaction_pickup_ts,
@@ -312,6 +321,12 @@ class transactionModel(db.Model):
 
         return code
 
+    def setpricing(self,book_price):
+        self.borrower_price = int(0.3*book_price)
+        self.lender_cost = int(0.15*book_price)
+        self.store_cost = int(0.10*book_price)
+        self.company_cost = int(0.05*book_price)
+
     def getdropoffpricing(self):
         pricing = dict()
         pricing['lender'] = dict()
@@ -333,12 +348,12 @@ class transactionModel(db.Model):
 
         elif self.transaction_status == transaction_statuses.return_by_borrower:
             
-            pricing['borrower']['pricing'] = self.book_price - int(0.30*self.book_price)
+            pricing['borrower']['pricing'] = self.book_price - self.borrower_price
             borrower = userModel.query.filter_by(usernumber = self.borrower_id).first()
             pricing['borrower']['name'] = borrower.firstname + " " + borrower.lastname
             pricing['borrower']['mode'] = 'receives'
 
-            pricing['store']['pricing'] = int(0.30*self.book_price)
+            pricing['store']['pricing'] = self.borrower_price
             store = storeModel.query.filter_by(store_id = self.store_id).first()
             pricing['store']['name'] = store.store_name
             pricing['store']['mode'] = 'keeps'
@@ -367,12 +382,12 @@ class transactionModel(db.Model):
 
         elif self.transaction_status == transaction_statuses.submitted_by_borrower:
             
-            pricing['lender']['pricing'] = int(0.15*self.book_price)
+            pricing['lender']['pricing'] = self.lender_cost
             lender = userModel.query.filter_by(usernumber = self.lender_id).first()
             pricing['lender']['name'] = lender.firstname + " " + lender.lastname
             pricing['lender']['mode'] = 'receives'
 
-            pricing['store']['pricing'] = int(0.15*self.book_price)
+            pricing['store']['pricing'] = self.lender_cost
             store = storeModel.query.filter_by(store_id = self.store_id).first()
             pricing['store']['name'] = store.store_name
             pricing['store']['mode'] = 'pays'
@@ -395,7 +410,7 @@ class transactionModel(db.Model):
         
     
     def getbooksapppaymentprincing(self):
-        return int(0.05*self.book_price)
+        return self.company_cost
 
 
 

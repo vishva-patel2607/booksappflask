@@ -687,7 +687,7 @@ def create_app():
         book.book_price = book_price
         book.book_condition = book_condition
         book.book_year = book_year
-
+        book.setprice(book_price)
         book.update()
 
         return make_response(
