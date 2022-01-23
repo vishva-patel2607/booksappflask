@@ -1,5 +1,5 @@
 import os
-from flask import Flask,render_template, request, abort, jsonify ,make_response
+from flask import Flask,render_template, request, abort, jsonify ,make_response, session
 from flask.helpers import url_for
 from flask_cors import CORS
 from sqlalchemy.sql.expression import true
@@ -37,7 +37,7 @@ def create_app():
     app = Flask(__name__)
 
     app.config['SECRET_KEY'] = "patel gang"
-    app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
+    #app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
     app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     setup_db(app)
@@ -86,6 +86,30 @@ def create_app():
                     ),
                     401
                 )
+
+        
+            return f(current_user,*args,**kwargs)
+        
+        return decorated
+
+
+    def token_required_admin(f):
+        @wraps(f)
+
+        def decorated(*args, **kwargs):
+
+            token = None
+            if 'x-access-token' in session:
+                token = session['x-access-token']
+            if not token:
+                return render_template('login.html',error = "Token missing login again 1")
+
+            try:
+                data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
+                current_user = userModel.query.filter_by(usernumber = data['usernumber']).first()
+                
+            except:
+                return render_template('login.html',error = "Token missing login again 2")
 
         
             return f(current_user,*args,**kwargs)
@@ -1612,13 +1636,42 @@ def create_app():
 
         
 
+    @app.route('/Admin',methods=['GET'])
+    @app.route('/Admin/Login', methods=['POST'])
+    def adminlogin():
+        auth = request.form
+
+        if not auth or not auth.get('username') or not auth.get('password'):
+            return render_template('login.html',error = 'Login required')
 
 
+        user = userModel.query.filter_by(username = auth.get('username')).first()
+
+        if not user or user.usertype != Usertype.admin.name:
+            return render_template('login.html',error = 'Check username')
+        elif user.verified and user.verified != None:
+            
+            if check_password_hash(user.password, auth.get('password')):
+                token = jwt.encode({
+                    'usernumber': user.usernumber,
+                    'exp': datetime.utcnow() + timedelta(minutes = 1000)
+                },app.config['SECRET_KEY'],algorithm="HS256")
+                session['x-access-token'] = token
+
+                store = storeModel.query.filter_by(usernumber = user.usernumber).first()
+                return render_template('admin-index.html',error = 'Correct password')
+            else:
+                return render_template('login.html',error = 'Incorrect password')
+
+
+    @app.route('/Admin/<template>',methods=['GET'])
+    @token_required_admin
+    def adminloader(user,template):
+        return render_template(template+'.html')
 
     @app.route('/',methods=['GET'])
-    def hello():
+    def homepage():
         return render_template('index.html')
-
 
 
     return app
