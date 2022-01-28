@@ -188,7 +188,7 @@
                                         <td>{{book.book_name}}</td>
                                         <td>{{book.book_price}}</td>
                                         <td>{{book.store_id}}</td>
-                                        <td><a class="text-gray-600" href="/Admin/User/{{book.usernumber}}" target="_blank" >T{{book.usernumber}}</a></td>
+                                        <td><a class="text-gray-600" href="/Admin/User/{{book.usernumber}}" target="_blank" >{{book.usernumber}}</a></td>
                                     </tr>
                                 {% endfor %}
                                 </tbody>
@@ -234,7 +234,7 @@
                                         <td>{{book.book_name}}</td>
                                         <td>{{book.book_price}}</td>
                                         <td>{{book.store_id}}</td>
-                                        <td><a class="text-gray-600" href="/Admin/User/{{book.usernumber}}" target="_blank" >T{{book.usernumber}}</a></td>
+                                        <td><a class="text-gray-600" href="/Admin/User/{{book.usernumber}}" target="_blank" >{{book.usernumber}}</a></td>
                                     </tr>
                                 {% endfor %}
                                 </tbody>
@@ -290,7 +290,7 @@
                                         <td><a class="text-gray-600" href="/Admin/User/{{transaction.lender_id}}" target="_blank" >{{transaction.lender_id}}</a></td>
                                         <td><a class="text-gray-600" href="/Admin/User/{{transaction.borrower_id if transaction.borrower_id is not none}}" target="_blank" >{{transaction.borrower_id if transaction.borrower_id is not none}}</a></td>
                                         <td><a class="text-gray-600" href="/Admin/Store/{{transaction.store_id if transaction.borrower_id is not none}}" target="_blank" >{{transaction.store_id if transaction.borrower_id is not none}}</a></td>
-                                        <td>{{transaction.transaction_status if transaction.borrower_id is not none}}</td>
+                                        <td>{{transaction.transaction_status if transaction.transaction_status is not none}}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
