@@ -1,0 +1,334 @@
+{% include 'admin-layout.html' %}
+
+
+<div class="container">
+
+    <div class="card o-hidden border-0 shadow-lg my-5">
+      <div class="card-body p-0">
+        <!-- Nested Row within Card Body -->
+        <div class="row">
+          
+          <div class="col-lg-12">
+            <div class="p-5">
+              <div class="text-center">
+                <h1 class="h4 text-gray-900 mb-4">User statistics</h1>
+              </div>
+              <form action = "/Admin/User" class="user" method="GET">
+                <div class="form-group row">
+                    <div class="col-sm-6 mb-3 mb-sm-0">
+                        <input type="text" class="form-control form-control-user" id="username" name="username" placeholder="Username" >
+                        <div id="uname_response" ></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <input type="email" class="form-control form-control-user" id="exampleInputEmail" name="email" placeholder="Email Address" >
+                    </div>
+                </div>
+                
+                <button id="button"  class="btn btn-primary btn-user btn-block">
+                  Go
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if not success %}
+    <div class="card shadow-lg my-5 bg-warning rounded-5">
+        <h1 class="h3 text-gray-100 mx-auto my-auto p-2">Enter a username or email address</h1>
+    </div>
+    {% else %}
+
+    <div class="row my-5">
+        <div class="col-md-6 col-lg-4 col-sm-12 mb-2 ">
+            <div class="card shadow-lg p-2">
+                <div class="text-lg text-primary">{{user.firstname}} {{user.lastname}}</div>
+                <div clas="text-md text-info">Usernumber : {{user.usernumber}}</div>
+                <div clas="text-md text-info">Username : {{user.username}}</div>
+                <div clas="text-md text-info">Email : {{user.email}}</div>
+                <div clas="text-md text-info">Mobile number : {{user.phonenumber}}</div>
+                <div clas="text-md text-info">Date of birth : {{user.dob}}</div>
+                <div clas="text-md text-info">Created on : {{user.created_on}}</div>
+                {% if user.verified != None %}
+                    <div clas="text-md text-info">Verified on : {{user.verified_on}}</div>
+                {% endif %}
+                
+            </div>
+        </div>
+        <div class="col">
+            <div class="row">
+                <div class="col-md-12 col-lg-6  mb-4">
+                    <div class="card border-left-info shadow h-100 py-2">
+                      <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                          <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books Borrowed previously</div>
+                            <div class="row no-gutters align-items-center">
+                              <div class="col-auto">
+                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books borrowed previously']|length if tables['Books borrowed previously']|length != none else "0"}} Books</div>
+                              </div>
+                              
+                            </div>
+                          </div>
+                          <div class="col-auto">
+                            <i class="fas fa-history fa-2x text-gray-300"></i>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+
+
+                <div class="col-md-12 col-lg-6 mb-4">
+                    <div class="card border-left-info shadow h-100 py-2">
+                      <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                          <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books Borrowed Currently</div>
+                            <div class="row no-gutters align-items-center">
+                              <div class="col-auto">
+                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books borrowed currently']|length if tables['Books borrowed currently']|length != none else "0"}} Books</div>
+                              </div>
+                              
+                            </div>
+                          </div>
+                          <div class="col-auto">
+                            <i class="fas fa-cart-arrow-down fa-2x text-gray-300"></i>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+
+            
+                  <div class="col-md-12 col-lg-6 mb-4">
+                    <div class="card border-left-info shadow h-100 py-2">
+                      <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                          <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books Lent previously</div>
+                            <div class="row no-gutters align-items-center">
+                              <div class="col-auto">
+                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books lent previously']|length if tables['Books lent previously']|length != none else "0"}} Books</div>
+                              </div>
+                              
+                            </div>
+                          </div>
+                          <div class="col-auto">
+                            <i class="fas fa-history fa-2x text-gray-300"></i>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <div class="col-md-12 col-lg-6 mb-4">
+                    <div class="card border-left-info shadow h-100 py-2">
+                      <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                          <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books Lent currently</div>
+                            <div class="row no-gutters align-items-center">
+                              <div class="col-auto">
+                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books lent currently']|length if tables['Books lent currently']|length != none else "0"}} Books</div>
+                              </div>
+                              
+                            </div>
+                          </div>
+                          <div class="col-auto">
+                            <i class="fas fa-cart-plus fa-2x text-gray-300"></i>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+
+            </div>
+            
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 col-md-6 col-sm-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Uploaded Books</h6>
+                </div>
+                {% if uploadedbooks|length != 0 and uploadedbooks != None %}
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                    <th>Book ID</th>
+                                    <th>Book Name</th>
+                                    <th>Book Price</th>
+                                    <th>Store ID</th>
+                                    <th>Usernumber</th>
+                                    </tr>
+                                </thead>
+                                <tfoot>
+                                    <tr>
+                                        <th>Book ID</th>
+                                        <th>Book Name</th>
+                                        <th>Book Price</th>
+                                        <th>Store ID</th>
+                                        <th>Usernumber</th>
+                                    </tr>
+                                </tfoot>
+                                <tbody>
+                                {% for book in uploadedbooks %}
+                                    <tr>
+                                        <td>{{book.book_id}}</td>
+                                        <td>{{book.book_name}}</td>
+                                        <td>{{book.book_price}}</td>
+                                        <td>{{book.store_id}}</td>
+                                        <td><a class="text-gray-600" href="/Admin/User/{{book.usernumber}}" target="_blank" >T{{book.usernumber}}</a></td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <div class="col-lg-6 col-md-6 col-sm-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Borrowed Books</h6>
+                </div>
+                {% if borrowedbooks|length != 0 and borrowedbooks!= None %}
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                    <th>Book ID</th>
+                                    <th>Book Name</th>
+                                    <th>Book Price</th>
+                                    <th>Store ID</th>
+                                    <th>Usernumber</th>
+                                    </tr>
+                                </thead>
+                                <tfoot>
+                                    <tr>
+                                        <th>Book ID</th>
+                                        <th>Book Name</th>
+                                        <th>Book Price</th>
+                                        <th>Store ID</th>
+                                        <th>Usernumber</th>
+                                    </tr>
+                                </tfoot>
+                                <tbody>
+                                {% for book in borrowedbooks %}
+                                    <tr>
+                                        <td>{{book.book_id}}</td>
+                                        <td>{{book.book_name}}</td>
+                                        <td>{{book.book_price}}</td>
+                                        <td>{{book.store_id}}</td>
+                                        <td><a class="text-gray-600" href="/Admin/User/{{book.usernumber}}" target="_blank" >T{{book.usernumber}}</a></td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+        
+        
+        {% for title,data in tables.items() %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{{title}}</h6>
+                </div>
+                {% if data|length != 0 and data != None %}
+                    
+                        
+                    <div class="card-body">
+                        <div class="table-responsive">
+                                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                                    <thead>
+                                        <tr>
+                                        <th>Transaction ID</th>
+                                        <th>Book ID</th>
+                                        <th>Book Price</th>
+                                        <th>Lender</th>
+                                        <th>Borrower</th>
+                                        <th>Store</th>
+                                        <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tfoot>
+                                        <tr>
+                                        <th>Transaction ID</th>
+                                        <th>Book ID</th>
+                                        <th>Book Price</th>
+                                        <th>Lender</th>
+                                        <th>Borrower</th>
+                                        <th>Store</th>
+                                        <th>Status</th>
+                                        </tr>
+                                    </tfoot>
+                                    <tbody>
+                                    {% for tranaction in data %}
+                                        <tr>
+                                        <td>{{transaction.transaction_id}}</td>
+                                        <td>{{transaction.book_id}}</td>
+                                        <td>{{transaction.book_price}}</td>
+                                        <td><a class="text-gray-600" href="/Admin/User/{{transaction.lender_id}}" target="_blank" >{{transaction.lender_id}}</a></td>
+                                        <td><a class="text-gray-600" href="/Admin/User/{{transaction.borrower_id if transaction.borrower_id is not none}}" target="_blank" >{{transaction.borrower_id if transaction.borrower_id is not none}}</a></td>
+                                        <td><a class="text-gray-600" href="/Admin/Store/{{transaction.store_id if transaction.borrower_id is not none}}" target="_blank" >{{transaction.store_id if transaction.borrower_id is not none}}</a></td>
+                                        <td>{{transaction.transaction_status if transaction.borrower_id is not none}}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                </table>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+                 
+        {% endfor %}
+        
+    
+
+    {% endif %}
+
+    
+
+    
+    
+    
+
+  </div>
+
+  <!-- Bootstrap core JavaScript-->
+  <script src="/static/vendor/jquery/jquery.min.js"></script>
+  <script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Core plugin JavaScript-->
+  <script src="/static/vendor/jquery-easing/jquery.easing.min.js"></script>
+
+  <!-- Custom scripts for all pages-->
+  <script src="/static/js/sb-admin-2.min.js"></script>
+  
+  <!-- Page level custom scripts -->
+  <script src="/static/vendor/datatables/jquery.dataTables.min.js"></script>
+  <script src="/static/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+
+
+  </body>
+
+  </html>
