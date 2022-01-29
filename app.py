@@ -38,7 +38,7 @@ def create_app():
     app = Flask(__name__)
 
     app.config['SECRET_KEY'] = "patel gang"
-    #app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
+    app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
     app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     setup_db(app)
