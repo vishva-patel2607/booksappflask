@@ -21,6 +21,7 @@ from geoalchemy2.types import Geometry
 from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
 import enum
+from jinja2 import TemplateNotFound
 
 
 BUCKET = "booksapp-image-data"
@@ -37,7 +38,7 @@ def create_app():
     app = Flask(__name__)
 
     app.config['SECRET_KEY'] = "patel gang"
-    app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
+    #app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
     app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     setup_db(app)
@@ -1667,7 +1668,18 @@ def create_app():
     @app.route('/Admin/<template>',methods=['GET'])
     @token_required_admin
     def adminloader(user,template):
-        return render_template(template+'.html')
+        try:
+
+            if not template.endswith('.html'):
+                template += '.html'
+            return render_template(template)
+
+        except TemplateNotFound:
+            return render_template('404.html'), 404
+
+        except:
+            return render_template('404.html'), 500
+            
 
     @app.route('/Admin/User',methods=['GET'])
     @app.route('/Admin/User/<int:userid>',methods=['GET'])
@@ -1751,6 +1763,32 @@ def create_app():
                                     )
             else:
                 return render_template('user-profile.html',success = success)
+
+
+    @app.route('/Admin/Book/<int:book_id>',methods=['GET'])
+    @token_required_admin
+    def admingetbook(user,book_id = None):
+
+        if book_id != None:
+            book = bookModel.query.filter_by(book_id = book_id).first()
+
+            if book and book!= None:
+                return render_template('bookinfo.html',book = book)
+    
+        return render_template('404.html')
+
+
+    @app.route('/Admin/Transaction/<int:transaction_id>',methods=['GET'])
+    @token_required_admin
+    def admingettransaction(user,transaction_id = None):
+
+        if transaction_id != None:
+            transaction = transactionModel.query.filter_by(transaction_id = transaction_id).first()
+
+            if transaction and transaction!= None:
+                return render_template('transactioninfo.html',transaction = transaction)
+    
+        return render_template('404.html')
 
 
     @app.route('/',methods=['GET'])

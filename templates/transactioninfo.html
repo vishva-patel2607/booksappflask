@@ -1,0 +1,119 @@
+
+{% include 'admin-layout.html' %}
+
+{% if transaction and transaction != none %}
+<div class="container-fluid">
+
+
+  <div class="d-sm-flex align-items-center justify-content-between mb-4">
+      <h1 class="h3 mb-0 text-gray-800">Transaction Info</h1>
+    </div> 
+
+<!-- Basic Card Example -->
+<div class="card shadow mb-4 m-5">
+  <div class="card-body p-5">
+    <table class="table table-bordered " width="100%" cellspacing="2">
+      <tbody>
+        <tr>
+          <th>Transaction Id</th>
+          <td><a class="text-gray-600" href="/Admin/User/{{transaction.transaction_id}}" target="_blank" >{{transaction.transaction_id}}</a></td>
+          <th>Transaction Status</th>
+          <td>{{transaction.transaction_status if transaction.transaction_status is not none}}</td> 
+        </tr>
+        <tr>
+          <th>Book Id</th>
+          <td><a class="text-gray-600" href="/Admin/User/{{transaction.book_id}}" target="_blank" >{{transaction.book_id}}</a></td>
+          <th>Book Price</th>
+          <td>{{transaction.book_price}}</td> 
+        </tr>
+        <tr>
+            <th>Store Id</th>
+            <td><a class="text-gray-600" href="/Admin/User/{{transaction.store_id}}" target="_blank" >{{transaction.store_id if transaction.store_id is not none}}</a></td>
+            <th>Store Cost</th>
+            <td>{{transaction.store_cost}}</td>
+            <th>Store Status</th>
+            <td>{{transaction.store_transaction_status if transaction.store_transaction_status is not none}}</td>
+        </tr>
+        <tr>
+          <th>Lender Id</th>
+          <td><a class="text-gray-600" href="/Admin/User/{{transaction.lender_id}}" target="_blank" >{{transaction.lender_id }}</a></td>
+          <th>Lender Cost</th>
+          <td>{{transaction.lender_cost}}</td>
+          <th>Lender Status</th>
+          <td>{{transaction.lender_transaction_status if transaction.lender_transaction_status is not none}}</td>
+        </tr>
+        <tr>
+            <th>Borrower Id</th>
+            <td><a class="text-gray-600" href="/Admin/User/{{transaction.borrower_id}}" target="_blank" >{{transaction.borrower_id if transaction.borrower_id is not none}}</a></td>
+            <th>Borrower Price</th>
+            <td>{{transaction.borrower_price}}</td>
+            <th>Borrower Status</th>
+            <td>{{transaction.borrower_transaction_status if transaction.borrower_transaction_status is not none}}</td>
+        </tr>
+        <tr>
+          <th>Upload Time</th>
+          <td>{{transaction.transaction_upload_ts if transaction.transaction_upload_ts is not none}}</td>
+        </tr>
+        <tr>
+          <th>Lender Submit Time</th>
+          <td>{{transaction.transaction_submit_ts if transaction.transaction_submit_ts is not none}}</td>
+        </tr>
+        <tr>
+            <th>Borrower Pickup Time</th>
+            <td>{{transaction.transaction_pickup_ts if transaction.transaction_pickup_ts is not none}}</td>
+        </tr>
+        <tr>
+            <th>Borrower Submit Time</th>
+            <td>{{transaction.transaction_return_ts if transaction.transaction_return_ts is not none}}</td>
+        </tr>
+        <tr>
+            <th>Lender Pickup Time</th>
+            <td>{{transaction.transaction_lenderpickup_ts if transaction.transaction_lenderpickup_ts is not none}}</td>
+        </tr>
+      </tbody>
+  </table>
+  </div>
+</div>
+
+
+
+</div>
+{% endif %}
+
+
+
+</div>
+<!-- Footer -->
+<footer class="sticky-footer bg-white">
+  <div class="container my-auto">
+    <div class="copyright text-center my-auto">
+      <span>Copyright &copy; Booksapp 2022</span>
+    </div>
+  </div>
+</footer>
+<!-- End of Footer -->
+
+</div>
+<!-- End of Content Wrapper -->
+
+</div>
+<!-- End of Page Wrapper -->
+
+<!-- Scroll to Top Button-->
+<a class="scroll-to-top rounded" href="#page-top">
+<i class="fas fa-angle-up"></i>
+</a>
+
+<!-- Bootstrap core JavaScript-->
+<script src="/static/vendor/jquery/jquery.min.js"></script>
+<script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+<!-- Core plugin JavaScript-->
+<script src="/static/vendor/jquery-easing/jquery.easing.min.js"></script>
+
+<!-- Custom scripts for all pages-->
+<script src="/static/js/sb-admin-2.min.js"></script>
+
+</body>
+
+</html>
