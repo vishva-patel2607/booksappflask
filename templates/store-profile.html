@@ -165,7 +165,7 @@
         </div>
     </div>
         
-        
+    {% if tables|length != 0 and tables!= None %}
         {% for title,data in tables.items() %}
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
@@ -221,7 +221,7 @@
         {% endfor %}
         
     
-
+    {% endif %}
     {% endif %}
 
 
