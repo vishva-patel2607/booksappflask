@@ -1,3 +1,4 @@
+from crypt import methods
 import os
 from flask import Flask,render_template, request, abort, jsonify ,make_response, session
 from flask.helpers import url_for
@@ -1410,6 +1411,7 @@ def create_app():
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.return_by_borrower) ).\
                         first()
         
         
@@ -1440,6 +1442,7 @@ def create_app():
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.return_by_borrower) ).\
                         first()
 
         if not transaction : 
@@ -1497,7 +1500,7 @@ def create_app():
         return make_response( 
                                 jsonify(
                                     {
-                                        "message" : "Dropoff confirmed!",
+                                        "message" : "Pickup confirmed!",
                                         "status" : True,
                                         "response" : {
                                             "pricing" : pricing
@@ -1763,6 +1766,48 @@ def create_app():
                                     )
             else:
                 return render_template('user-profile.html',success = success)
+
+    @app.route('/Admin/Store',methods=['GET'])
+    @app.route('/Admin/Store/<int:store_id>',methods=['GET'])
+    @token_required_admin
+    def admingetstore(user,store_id = None):
+        username = request.args.get('username')
+        email = request.args.get('email')
+        success = False
+
+        user = None
+        store = None
+        if  store_id != None:
+            store = storeModel.query.\
+                    filter( (storeModel.store_id == store_id) ).\
+                    first()
+            if store and store != None:
+                user = userModel.query.\
+                        filter( (userModel.usernumber == store.usernumber) ).\
+                        first()
+                success = True  
+
+        elif username != "" or email != "" :
+            user = userModel.query.\
+                    filter( (userModel.username == username) | (userModel.email == email) ).\
+                    filter(userModel.usertype == Usertype.store.name).\
+                    first()
+            if user and user != None:
+                store = storeModel.query.\
+                        filter( (storeModel.usernumber == user.usernumber) ).\
+                        first()
+                success = True 
+
+        else :
+            return render_template('user-profile.html',success = success)   
+
+        return render_template('store-profile.html',success = success,store=store, user=user)  
+            
+
+                
+
+                    
+            
 
 
     @app.route('/Admin/Book/<int:book_id>',methods=['GET'])
