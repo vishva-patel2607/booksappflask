@@ -1013,83 +1013,7 @@ def create_app():
         
 
 
-    @app.route('/Store/Signup', methods=['POST'])
-    @token_required
-    def signupstore(current_user):
-
-        if current_user.usertype != Usertype.store.name:
-            return make_response(
-                    jsonify(
-                        {
-                            "message" : "User is not authorized to signup for store",
-                            "status" : False,
-                        }
-                    ),
-                    201
-                )
-
-        if not current_user.verified or current_user.verified == None:
-            token = jwt.encode({
-                'usernumber': current_user.usernumber,
-                'exp': datetime.utcnow() + timedelta(minutes = 30)
-            },app.config['SECRET_KEY'],algorithm="HS256")
-
-
-            url = url_for('verifyuser',token = token,_external=True)
-            mailer.sendverifymail(current_user.email,'verifyTokenEmail.html',url)
-            return make_response(
-                    jsonify(
-                        {
-                            "message" : "User is not verified",
-                            "status" : False,
-                            "response" : {
-
-                                        "token" : token,
-                                        "email" : current_user.email,
-                                    }
-                        }
-                    ),
-                    201
-                )
-
-
-        data = request.get_json()
-        usernumber = current_user.usernumber
-        store_name = data.get('store_name')
-        store_incharge = current_user.firstname+" "+current_user.lastname
-        store_address = data.get('store_address')
-        store_pincode = data.get('store_pincode')
-        store_number = data.get('store_number')
-        store_longitude = data.get('longitude')
-        store_latitude = data.get('latitude')
-
-        store = storeModel(
-            usernumber= usernumber,
-            store_name= store_name,
-            store_incharge= store_incharge,
-            store_address= store_address,
-            store_pincode = store_pincode,
-            store_number = store_number,
-            store_location = 'SRID=4326;POINT(%.8f %.8f)' % (store_longitude,store_latitude),
-            store_latitude= store_latitude,
-            store_longitude= store_longitude,
-        )
-
-        store.insert()
-
-
-        return make_response(
-            jsonify(
-                {
-                            "message" : "Store Signed up",
-                            "status" : True,
-                            "response" : {
-                                "store" : store.details()
-                            }
-                }
-            ),
-            200
-        )
+    
     
     
     @app.route('/Store/User/Signup', methods=['POST'])
@@ -1855,6 +1779,67 @@ def create_app():
                                 )  
         else:
             return render_template('store-profile.html',success = success)  
+
+
+    @app.route('/Admin/Store/Signup', methods=['POST'])
+    @token_required_admin
+    def signupstore(user):
+
+        data = request.form
+
+        username = data.get('username')
+        current_user = userModel.query.\
+                        filter(userModel.username == username).\
+                        first()
+
+        if not current_user or current_user == None:
+            return render_template('store-registration.html', error = "User doesn't exist check username", status = False)
+
+        if current_user.usertype != Usertype.store.name:
+            return render_template('store-registration.html', error = "User is not authorized to signup for store!", status = False)
+
+        if not current_user.verified or current_user.verified == None:
+            token = jwt.encode({
+                'usernumber': current_user.usernumber,
+                'exp': datetime.utcnow() + timedelta(minutes = 30)
+            },app.config['SECRET_KEY'],algorithm="HS256")
+
+
+            url = url_for('verifyuser',token = token,_external=True)
+            mailer.sendverifymail(current_user.email,'verifyTokenEmail.html',url)
+            return render_template('store-registration.html', error = "User is not verified yet", status = False)
+            
+        store_check = storeModel.query.filter(storeModel.usernumber == current_user.usernumber).first()
+
+        if not store_check or store_check != None:
+            return render_template('store-registration.html', error = "User is already signed up with a store", status = False)
+
+        
+        usernumber = current_user.usernumber
+        store_name = data.get('store_name')
+        store_incharge = current_user.firstname+" "+current_user.lastname
+        store_address = data.get('store_address')
+        store_pincode = data.get('store_pincode')
+        store_number = data.get('store_number')
+        store_longitude = data.get('longitude')
+        store_latitude = data.get('latitude')
+
+        store = storeModel(
+            usernumber= usernumber,
+            store_name= store_name,
+            store_incharge= store_incharge,
+            store_address= store_address,
+            store_pincode = store_pincode,
+            store_number = store_number,
+            store_location = 'SRID=4326;POINT(%.8f %.8f)' % (store_longitude,store_latitude),
+            store_latitude= store_latitude,
+            store_longitude= store_longitude,
+        )
+
+        store.insert()
+
+
+        return render_template('store-registration.html', error = "Store Signed Up!", status = True, store_id = store.store_id) 
             
 
                 
@@ -1874,6 +1859,9 @@ def create_app():
                 return render_template('bookinfo.html',book = book)
     
         return render_template('404.html')
+
+
+    
 
 
     @app.route('/Admin/Transaction/<int:transaction_id>',methods=['GET'])

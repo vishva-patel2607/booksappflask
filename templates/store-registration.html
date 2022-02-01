@@ -1,0 +1,121 @@
+{% include 'admin-layout.html' %}
+
+
+<div class="container">
+
+    <div class="card o-hidden border-0 shadow-lg my-5">
+      <div class="card-body p-0">
+        <!-- Nested Row within Card Body -->
+        <div class="row">
+          
+          <div class="col-lg-12">
+            <div class="p-5">
+              <div class="text-center">
+                <h1 class="h4 text-gray-900 mb-4">Store statistics</h1>
+              </div>
+              <form action = "/Admin/Store/Signup" class="user" method="post">
+                <div class="form-group row">
+                    <div class="col-sm-12 mb-3 mb-sm-0">
+                        <input type="text" class="form-control form-control-user" id="username" name="username" placeholder="Username" required>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <div class="col-sm-6 mb-3 mb-sm-0">
+                        <input type="text" class="form-control form-control-user" id="storename" name="store_name" placeholder="Store Name" required>
+                    </div>
+                    <div class="col-sm-6 mb-3 mb-sm-0">
+                        <input type="tel" class="form-control form-control-user" pattern="[0-9]{10}" id="storenumber" name="store_number" placeholder="Phone number" required>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <div class="col-sm-12 col-lg-8 col-m-8 mb-3 mb-sm-3">
+                        <textarea rows="7" class="form-control form-control-user rounded-lg" name="store_address" placeholder="Store address"  required></textarea>
+                    </div>
+                    <div class="col-sm-12 col-lg-4 col-m-4 mb-3 mb-sm-0">
+                        <div class = "row-12 mb-3 mb-sm-3">
+                            <input type="text" class="form-control form-control-user" pattern="[0-9]{6}" id="pincode" name="store_pincode" placeholder="Pincode" required>
+                        </div>
+                        <div class = "row-12 mb-3 mb-sm-3">
+                            <input type="text" class="form-control form-control-user" pattern="(\+|\-|)(([0-8]\d?)(\.\d+)?|90(\.0+)?)" id="pincode" name="latitude" placeholder="latitude" required>
+                        </div>
+                        <div class = "row-12 mb-3 mb-sm-3">
+                            <input type="text" class="form-control form-control-user" pattern="(\+|\-|)((\d?\d|1[0-7]\d)(\.\d+)?|180(\.0+)?)" id="pincode" name="longitude" placeholder="longitude" required>
+                        </div>
+                    </div>
+                </div>
+
+                
+                
+                <button id="button"  class="btn btn-primary btn-user btn-block">
+                  Go
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if status != None and status == False %}
+    <div class="card shadow-lg my-5 bg-warning rounded-5">
+        <h1 class="h3 text-gray-100 mx-auto my-auto p-2">{{error}}</h1>
+    </div>
+    {% elif status != None and status %}
+    <div class="card shadow-lg my-5 bg-success rounded-5">
+        <h1 class="h3 text-gray-100 mx-auto my-auto p-2">{{error}} <a href="/Admin/Store/{{store_id}}" target="_blank">Click Here!</a></h1>
+    </div>
+    {% else %}
+    <div class="card shadow-lg my-5 bg-info rounded-5">
+        <h1 class="h3 text-gray-100 mx-auto my-auto p-2">Enter the information carefully!</h1>
+    </div>
+    {% endif %}
+
+    
+    
+    
+
+
+  </div>
+
+</div>
+   <!-- Footer -->
+<footer class="sticky-footer bg-white">
+    <div class="container my-auto">
+      <div class="copyright text-center my-auto">
+        <span>Copyright &copy; Booksapp 2022</span>
+      </div>
+    </div>
+  </footer>
+  <!-- End of Footer -->
+  
+  </div>
+  <!-- End of Content Wrapper -->
+  
+  </div>
+  <!-- End of Page Wrapper -->
+  
+  <!-- Scroll to Top Button-->
+  <a class="scroll-to-top rounded" href="#page-top">
+  <i class="fas fa-angle-up"></i>
+  </a>   
+
+  <!-- Bootstrap core JavaScript-->
+  <script src="/static/vendor/jquery/jquery.min.js"></script>
+  <script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Core plugin JavaScript-->
+  <script src="/static/vendor/jquery-easing/jquery.easing.min.js"></script>
+
+  <!-- Custom scripts for all pages-->
+  <script src="/static/js/sb-admin-2.min.js"></script>
+  
+  <!-- Page level custom scripts -->
+  <script src="/static/vendor/datatables/jquery.dataTables.min.js"></script>
+  <script src="/static/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+  <script src="/static/js/datatables-demo.js"></script>
+
+  </body>
+
+  </html>
