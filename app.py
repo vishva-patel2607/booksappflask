@@ -39,7 +39,7 @@ def create_app():
     app = Flask(__name__)
 
     app.config['SECRET_KEY'] = "patel gang"
-    app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
+    #app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
     app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     setup_db(app)
@@ -1707,39 +1707,47 @@ def create_app():
                 books_lent_previously = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
                                         filter(transactionModel.transaction_status == transaction_statuses.pickup_by_lender).\
+                                        order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all()
                 books_lent_currently = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
                                         filter(transactionModel.transaction_status.notin_([transaction_statuses.uploaded_with_lender,transaction_statuses.removed_by_lender,transaction_statuses.submitted_by_lender,transaction_statuses.submitted_by_borrower])).\
+                                        order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all() 
                 books_lent_pickup = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
                                         filter(transactionModel.transaction_status.in_([transaction_statuses.removed_by_lender,transaction_statuses.submitted_by_borrower])).\
+                                        order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all() 
 
                 books_lent_dropoff_or_notborrowed = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
                                         filter(transactionModel.transaction_status.in_([transaction_statuses.uploaded_with_lender,transaction_statuses.submitted_by_lender])).\
+                                        order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all()
 
                 books_borrowed_previously = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
                                             filter(transactionModel.transaction_status == transaction_statuses.submitted_by_borrower).\
+                                            order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
                 books_borrowed_currently = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
                                             filter(transactionModel.transaction_status == transaction_statuses.borrowed_by_borrower).\
+                                            order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
                 books_borrowed_pickup = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
                                             filter(transactionModel.transaction_status == transaction_statuses.pickup_by_borrower).\
+                                            order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
                 books_borrowed_dropoff = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
                                             filter(transactionModel.transaction_status == transaction_statuses.return_by_borrower).\
+                                            order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
                 borrowedbookslist = set(transaction.book_id for transaction in books_borrowed_previously+books_borrowed_currently+books_borrowed_pickup+books_borrowed_dropoff)
@@ -1799,9 +1807,54 @@ def create_app():
                 success = True 
 
         else :
-            return render_template('user-profile.html',success = success)   
+            return render_template('store-profile.html',success = success)   
 
-        return render_template('store-profile.html',success = success,store=store, user=user)  
+        if success == True:
+            idle_books = transactionModel.query.\
+                        filter(transactionModel.store_id == store.store_id).\
+                        filter(transactionModel.transaction_status == transaction_statuses.submitted_by_lender).\
+                        order_by(transactionModel.transaction_upload_ts.desc()).\
+                        all()
+                        
+            pickup_books = transactionModel.query.\
+                        filter(transactionModel.store_id == store.store_id).\
+                        filter(transactionModel.transaction_status.in_([transaction_statuses.pickup_by_borrower,transaction_statuses.submitted_by_borrower,transaction_statuses.removed_by_lender])).\
+                        order_by(transactionModel.transaction_upload_ts.desc()).\
+                        all()
+
+            dropoff_books = transactionModel.query.\
+                        filter(transactionModel.store_id == store.store_id).\
+                        filter(transactionModel.transaction_status.in_([transaction_statuses.uploaded_with_lender,transaction_statuses.return_by_borrower])).\
+                        order_by(transactionModel.transaction_upload_ts.desc()).\
+                        all()
+
+            past_books = transactionModel.query.\
+                        filter(transactionModel.store_id == store.store_id).\
+                        filter(transactionModel.transaction_status == transaction_statuses.pickup_by_lender).\
+                        order_by(transactionModel.transaction_upload_ts.desc()).\
+                        all()
+
+            all_books_info = bookModel.query.\
+                            filter(bookModel.store_id == store.store_id).\
+                            all()
+                            
+
+            tables = {
+                'Books idle at the store' : idle_books,
+                'Books to be picked up' : pickup_books,
+                'Books that will be dropped off' : dropoff_books,
+                "Past transactions" : past_books
+            }
+
+            return render_template('store-profile.html',
+                                    success = success,
+                                    store = store,
+                                    user = user,
+                                    all_books_info = all_books_info,
+                                    tables = tables
+                                )  
+        else:
+            return render_template('store-profile.html',success = success)  
             
 
                 
