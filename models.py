@@ -57,6 +57,8 @@ class userModel(db.Model):
     phonenumber = db.Column(db.String(20),nullable=False)
     verified = db.Column(db.Boolean, nullable=True)
     verified_on = db.Column(db.DateTime, nullable=True)
+    #phn_verified = db.Column(db.Boolean, nullable=True)
+    #phn_verified_on = db.Column(db.DateTime, nullable=True)
     created_on = db.Column(db.DateTime, nullable=True)
     usertype = db.Column(db.String(50))
 
