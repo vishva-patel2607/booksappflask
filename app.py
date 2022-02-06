@@ -37,11 +37,9 @@ class Usertype (enum.Enum):
 
 def create_app():
     app = Flask(__name__)
-
-    app.config['SECRET_KEY'] = "patel gang"
-    app.config['SERVER_NAME'] = 'booksapp2021.herokuapp.com'
-    app.config['PREFERRED_URL_SCHEME'] = 'https'
-
+    
+    app.config.from_object("config.DevelopmentConfig")
+    
     setup_db(app)
 
     mailer = Mailer(app)
