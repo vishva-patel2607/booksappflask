@@ -55,8 +55,10 @@ class userModel(db.Model):
     lastname = db.Column(db.String(20),nullable=False)
     dob = db.Column(db.Date,nullable=False)
     phonenumber = db.Column(db.String(20),nullable=False)
-    verified = db.Column(db.Boolean, nullable=True)
-    verified_on = db.Column(db.DateTime, nullable=True)
+    email_verified = db.Column(db.Boolean, nullable=True)
+    email_verified_on = db.Column(db.DateTime, nullable=True)
+    phn_verified = db.Column(db.Boolean, nullable=True)
+    phn_verified_on = db.Column(db.DateTime, nullable=True)
     created_on = db.Column(db.DateTime, nullable=True)
     usertype = db.Column(db.String(50))
 
@@ -114,8 +116,10 @@ class bookModel(db.Model):
     store_id = db.Column(db.BigInteger,nullable=False)
     usernumber = db.Column(db.BigInteger,nullable=False)
     book_author = db.Column(db.String(20),nullable=False)
+    book_isbn = db.Column(db.String(15),nullable=True)
+    book_category = db.Column(db.String(20),nullable=True)
 
-    def __init__(self, book_name, book_year,book_condition , book_img, book_price, store_id, usernumber,book_author): 
+    def __init__(self, book_name, book_year,book_condition , book_img, book_price, store_id, usernumber,book_author,book_isbn,book_category): 
         self.book_name  = book_name
         self.book_year = book_year
         self.book_condition = book_condition
@@ -124,6 +128,8 @@ class bookModel(db.Model):
         self.store_id = store_id
         self.usernumber = usernumber
         self.book_author = book_author
+        self.book_isbn = book_isbn
+        self.book_category = book_category
 
     def details(self):
         return {
@@ -135,7 +141,9 @@ class bookModel(db.Model):
             "book_price" : self.book_price, 
             "store_id" : self.store_id,
             "usernumber" : self.usernumber,
-            "book_author" : self.book_author
+            "book_author" : self.book_author,
+            "book_isbn" : self.book_isbn,
+            "book_category" : self.book_category
         }
 
     def insert(self):

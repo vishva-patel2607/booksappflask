@@ -7,7 +7,7 @@ from sqlalchemy.sql.expression import true
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.type_api import NULLTYPE
 from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db
-from mail import Mailer
+
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 import uuid
@@ -23,6 +23,15 @@ from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
 import enum
 from jinja2 import TemplateNotFound
+from rq.serializers import JSONSerializer
+
+
+
+from mail import sendverifymail,sendchangepasswordmail
+from rq import Queue,Retry
+from worker import conn
+
+
 
 
 BUCKET = "booksapp-image-data"
@@ -37,15 +46,21 @@ class Usertype (enum.Enum):
 
 def create_app():
     app = Flask(__name__)
+
     
     app.config.from_object("config.DevelopmentConfig")
     
+
     setup_db(app)
 
-    mailer = Mailer(app)
+    
+    mail_queue = Queue('mail',connection=conn)
 
+    
+    
     CORS(app)
 
+    
     
 
     '''
@@ -117,6 +132,9 @@ def create_app():
         return decorated
 
 
+
+
+
     @app.route('/User', methods=['POST'])
     @token_required
     def return_response(current_user):
@@ -170,15 +188,16 @@ def create_app():
 
 
         if check_password_hash(user.password, auth.get('password')):
-            if not user.verified or user.verified == None:
+            if not user.email_verified or user.email_verified == None:
                 token = jwt.encode({
                     'usernumber': user.usernumber,
                     'exp': datetime.utcnow() + timedelta(minutes = 30)
                 },app.config['SECRET_KEY'],algorithm="HS256")
 
-
                 url = url_for('verifyuser',token = token,_external=True)
-                mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+                template = render_template('verifyTokenEmail.html',url = url)
+                mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                
                 return make_response(
                         jsonify(
                             {
@@ -281,7 +300,8 @@ def create_app():
             },app.config['SECRET_KEY'],algorithm="HS256")
 
             url = url_for('verifyuser',token = token,_external=True)
-            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+            template = render_template('verifyTokenEmail.html',url = url)
+            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
             return make_response(
                 jsonify(
@@ -312,7 +332,7 @@ def create_app():
         try:
             data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
             user = userModel.query.filter_by(usernumber = data['usernumber']).first()
-            user.verified = True
+            user.email_verified = True
             user.verified_on = datetime.utcnow()
             if user.created_on == None:
                 user.verified_on = datetime.utcnow()
@@ -352,9 +372,10 @@ def create_app():
                     'exp': datetime.utcnow() + timedelta(minutes = 30)
                 },app.config['SECRET_KEY'],algorithm="HS256")
 
+        url = url_for('verifyuser',token = token,_external=True)
+        template = render_template('verifyTokenEmail.html',url = url)
+        mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],current_user.email,template,retry=Retry(max=2))
 
-        url = url_for('verifyuser',token = token)
-        mailer.sendverifymail(current_user.email,'verifyTokenEmail.html',url)
 
         return make_response( 
                     jsonify(
@@ -388,7 +409,7 @@ def create_app():
             )
         
         else: 
-            if not user.verified or user.verified == None:
+            if not user.email_verified or user.email_verified == None:
                 return make_response(
                     jsonify(
                             {
@@ -422,7 +443,9 @@ def create_app():
                     },app.config['SECRET_KEY'],algorithm="HS256")
 
                     url = url_for('verifychangepassword',token = token,_external=True)
-                    mailer.sendchangepasswordmail(user.email,'verifyTokenPassword.html',url)
+                    template = render_template('verifyTokenPassword.html',url = url)
+                    mail_queue.enqueue(sendchangepasswordmail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+
                     return make_response(
                             jsonify(
                                     {
@@ -1067,7 +1090,9 @@ def create_app():
             },app.config['SECRET_KEY'],algorithm="HS256")
 
             url = url_for('verifyuser',token = token,_external=True)
-            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+            template = render_template('verifyTokenEmail.html',url = url)
+            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+
 
             return make_response(
                 jsonify(
@@ -1124,7 +1149,7 @@ def create_app():
                     401,
                     {'WWW-Authenticate' : 'User does not exist'}
                 )
-        elif user.verified and user.verified != None:
+        elif user.email_verified and user.email_verified != None:
             
             if check_password_hash(user.password, auth.get('password')):
                 token = jwt.encode({
@@ -1166,9 +1191,11 @@ def create_app():
                     'exp': datetime.utcnow() + timedelta(minutes = 30)
                 },app.config['SECRET_KEY'],algorithm="HS256")
 
-
             url = url_for('verifyuser',token = token,_external=True)
-            mailer.sendverifymail(user.email,'verifyTokenEmail.html',url)
+            template = render_template('verifyTokenEmail.html',url = url)
+            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+
+            
             return make_response(
                     jsonify(
                         {
@@ -1575,7 +1602,7 @@ def create_app():
 
         if not user or user.usertype != Usertype.admin.name:
             return render_template('login.html',error = 'Check username')
-        elif user.verified and user.verified != None:
+        elif user.email_verified and user.email_verified != None:
             
             if check_password_hash(user.password, auth.get('password')):
                 token = jwt.encode({
@@ -1796,15 +1823,16 @@ def create_app():
         if current_user.usertype != Usertype.store.name:
             return render_template('store-registration.html', error = "User is not authorized to signup for store!", status = False)
 
-        if not current_user.verified or current_user.verified == None:
+        if not current_user.email_verified or current_user.email_verified == None:
             token = jwt.encode({
                 'usernumber': current_user.usernumber,
                 'exp': datetime.utcnow() + timedelta(minutes = 30)
             },app.config['SECRET_KEY'],algorithm="HS256")
 
-
             url = url_for('verifyuser',token = token,_external=True)
-            mailer.sendverifymail(current_user.email,'verifyTokenEmail.html',url)
+            template = render_template('verifyTokenEmail.html',url = url)
+            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+
             return render_template('store-registration.html', error = "User is not verified yet", status = False)
             
         store_check = storeModel.query.filter(storeModel.usernumber == current_user.usernumber).first()
@@ -1875,9 +1903,13 @@ def create_app():
         return render_template('404.html')
 
 
+
+
     @app.route('/',methods=['GET'])
     def homepage():
         return render_template('index.html')
+
+    
 
 
     return app
