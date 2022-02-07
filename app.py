@@ -193,7 +193,7 @@ def create_app():
 
 
         if check_password_hash(user.password, auth.get('password')):
-            if not user.verified or user.verified == None:
+            if not user.email_verified or user.email_verified == None:
                 token = jwt.encode({
                     'usernumber': user.usernumber,
                     'exp': datetime.utcnow() + timedelta(minutes = 30)
@@ -337,7 +337,7 @@ def create_app():
         try:
             data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
             user = userModel.query.filter_by(usernumber = data['usernumber']).first()
-            user.verified = True
+            user.email_verified = True
             user.verified_on = datetime.utcnow()
             if user.created_on == None:
                 user.verified_on = datetime.utcnow()
@@ -414,7 +414,7 @@ def create_app():
             )
         
         else: 
-            if not user.verified or user.verified == None:
+            if not user.email_verified or user.email_verified == None:
                 return make_response(
                     jsonify(
                             {
@@ -1154,7 +1154,7 @@ def create_app():
                     401,
                     {'WWW-Authenticate' : 'User does not exist'}
                 )
-        elif user.verified and user.verified != None:
+        elif user.email_verified and user.email_verified != None:
             
             if check_password_hash(user.password, auth.get('password')):
                 token = jwt.encode({
@@ -1607,7 +1607,7 @@ def create_app():
 
         if not user or user.usertype != Usertype.admin.name:
             return render_template('login.html',error = 'Check username')
-        elif user.verified and user.verified != None:
+        elif user.email_verified and user.email_verified != None:
             
             if check_password_hash(user.password, auth.get('password')):
                 token = jwt.encode({
@@ -1828,7 +1828,7 @@ def create_app():
         if current_user.usertype != Usertype.store.name:
             return render_template('store-registration.html', error = "User is not authorized to signup for store!", status = False)
 
-        if not current_user.verified or current_user.verified == None:
+        if not current_user.email_verified or current_user.email_verified == None:
             token = jwt.encode({
                 'usernumber': current_user.usernumber,
                 'exp': datetime.utcnow() + timedelta(minutes = 30)
@@ -1922,7 +1922,7 @@ def create_app():
 
 
 app = create_app()
-print(app.config)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
