@@ -2,11 +2,11 @@ import boto3
 import os
 
 
-def sendverifymail(sender,recepient,template):
+def sendverifymail(access_key_id,access_key,sender,recepient,template):
     try:
         ses_client = boto3.client('ses',
-                                    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                                    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+                                    aws_access_key_id=access_key_id,
+                                    aws_secret_access_key=access_key
                                 )
         ses_client.send_email(
             Source=sender,
@@ -23,11 +23,11 @@ def sendverifymail(sender,recepient,template):
         raise("Failed to send the mail") 
         
 
-def sendchangepasswordmail(sender,recepient,template):
+def sendchangepasswordmail(access_key_id,access_key,sender,recepient,template):
         try:
             ses_client = boto3.client('ses',
-                                    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                                    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+                                    aws_access_key_id=access_key_id,
+                                    aws_secret_access_key=access_key
                                 )
             ses_client.send_email(
                 Source=sender,

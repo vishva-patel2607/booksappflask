@@ -47,15 +47,18 @@ class Usertype (enum.Enum):
 def create_app():
     app = Flask(__name__)
 
-    
-    app.config.from_object("config.DevelopmentConfig")
-    
+    if os.getenv('FLASK_ENV') == 'development':
+        app.config.from_object("config.DevelopmentConfig")
+    elif os.getenv('FLASK_ENV') == 'production':
+        app.config.from_object("config.ProductionConfig")
+    else:
+        app.config.from_object("config.DevelopmentConfig")
 
     setup_db(app)
 
     
     mail_queue = Queue('mail',connection=conn)
-
+    
     
     
     CORS(app)
@@ -196,7 +199,7 @@ def create_app():
 
                 url = url_for('verifyuser',token = token,_external=True)
                 template = render_template('verifyTokenEmail.html',url = url)
-                mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
                 
                 return make_response(
                         jsonify(
@@ -301,7 +304,7 @@ def create_app():
 
             url = url_for('verifyuser',token = token,_external=True)
             template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
             return make_response(
                 jsonify(
@@ -374,7 +377,7 @@ def create_app():
 
         url = url_for('verifyuser',token = token,_external=True)
         template = render_template('verifyTokenEmail.html',url = url)
-        mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],current_user.email,template,retry=Retry(max=2))
+        mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],current_user.email,template,retry=Retry(max=2))
 
 
         return make_response( 
@@ -444,7 +447,7 @@ def create_app():
 
                     url = url_for('verifychangepassword',token = token,_external=True)
                     template = render_template('verifyTokenPassword.html',url = url)
-                    mail_queue.enqueue(sendchangepasswordmail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                    mail_queue.enqueue(sendchangepasswordmail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
                     return make_response(
                             jsonify(
@@ -604,7 +607,7 @@ def create_app():
         book_author = request.form.get('book_author')
 
         filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
-        upload_file(filename,BUCKET,body=book_img)
+        upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,BUCKET,body=book_img)
         
         book_img_url = BUCKET_LINK+filename
 
@@ -1091,7 +1094,7 @@ def create_app():
 
             url = url_for('verifyuser',token = token,_external=True)
             template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
 
             return make_response(
@@ -1193,7 +1196,7 @@ def create_app():
 
             url = url_for('verifyuser',token = token,_external=True)
             template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
             
             return make_response(
@@ -1831,7 +1834,7 @@ def create_app():
 
             url = url_for('verifyuser',token = token,_external=True)
             template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
             return render_template('store-registration.html', error = "User is not verified yet", status = False)
             
