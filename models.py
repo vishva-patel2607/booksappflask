@@ -55,6 +55,7 @@ class userModel(db.Model):
     phn_verified_on = db.Column(db.DateTime, nullable=True)
     created_on = db.Column(db.DateTime, nullable=True)
     usertype = db.Column(db.String(50))
+    last_active = db.Column(db.DateTime, nullable=True)
 
 
     def __init__(self, username, password,email , firstname, lastname, dob, phonenumber,created_on,usertype):
@@ -99,6 +100,47 @@ class userModel(db.Model):
 
 
 
+class userpntokenModel(db.Model):
+    __tablename__ = 'booksapp_userpntoken'
+    token_id = db.Column(db.BigInteger, primary_key=True)
+    usernumber = db.Column(db.BigInteger, nullable=False)
+    devicetoken = db.Column(db.Text, nullable=False)
+    awsarnendpoint = db.Column(db.Text, nullable=True)
+    platform = db.Column(db.Text,nullable=True)
+
+    def __init__(self, usernumber, devicetoken,awsarnendpoint,platform):
+        self.usernumber = usernumber,
+        self.devicetoken = devicetoken,
+        self.awsarnendpoint = awsarnendpoint
+        self.platform = platform
+
+    def details(self):
+        return {
+            "token_id" : self.token_id,
+            "usernumber" : self.usernumber,
+            "devicetoken" : self.devicetoken,
+            "awsarnendpoint" : self.awsarnendpoint,
+            "platform": self.platform
+        }
+
+    def insert(self):
+        db.session.add(self)
+        db.session.commit()
+
+
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
+
+
+    def update(self):
+        db.session.commit()
+        
+
+
+
 class bookModel(db.Model):
     __tablename__ = 'booksapp_book'
     book_id = db.Column(db.BigInteger, primary_key=True)
@@ -138,6 +180,39 @@ class bookModel(db.Model):
             "book_author" : self.book_author,
             "book_isbn" : self.book_isbn,
             "book_category" : self.book_category
+        }
+
+    def insert(self):
+        db.session.add(self)
+        db.session.commit()
+
+
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
+
+
+    def update(self):
+        db.session.commit()
+
+
+class booksubjectsModel(db.Model):
+    __tablename__ = 'booksapp_booksubjects'
+    subject_id = db.Column(db.BigInteger, primary_key=True)
+    book_id = db.Column(db.BigInteger, nullable = False)
+    book_subject = db.Column(db.Text, nullable = False)
+
+    def __init__(self,book_id,book_subject):
+        self.book_id = book_id,
+        self.book_subject = book_subject
+    
+    def details(self):
+        return {
+            'subject_id' : self.subject_id,
+            'book_id' : self.book_id,
+            'book_subject' : self.book_subject
         }
 
     def insert(self):
