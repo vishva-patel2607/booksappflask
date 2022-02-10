@@ -1,3 +1,4 @@
+envvariables.env
 node_modules/
 .expo/
 npm-debug.*
