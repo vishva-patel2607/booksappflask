@@ -6,7 +6,7 @@ from flask_cors import CORS
 from sqlalchemy.sql.expression import true
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.type_api import NULLTYPE
-from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db
+from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db, userpntokenModel
 
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
@@ -14,7 +14,7 @@ import uuid
 from  werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from datetime import datetime, timedelta,date
-from s3_functions import upload_file
+from s3_functions import upload_file,remove_file
 from werkzeug.utils import secure_filename
 import boto3
 from status import transaction_statuses,lender_transaction_statuses,store_transaction_statuses,borrower_transaction_statuses
@@ -23,20 +23,19 @@ from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
 import enum
 from jinja2 import TemplateNotFound
-from rq.serializers import JSONSerializer
+from notification import subscribetonotification
+from config import configure_app
 
 
 
 from mail import sendverifymail,sendchangepasswordmail
 from rq import Queue,Retry
-from worker import conn
+from redisconnection import conn
 
 
 
 
-BUCKET = "booksapp-image-data"
-BOOK_UPLOAD_FOLDER = "uploads"
-BUCKET_LINK = "https://"+BUCKET+".s3.ap-south-1.amazonaws.com/book-image-folder/"
+
 
 class Usertype (enum.Enum):
     user = 1
@@ -47,17 +46,13 @@ class Usertype (enum.Enum):
 def create_app():
     app = Flask(__name__)
 
-    if os.getenv('FLASK_ENV') == 'development':
-        app.config.from_object("config.DevelopmentConfig")
-    elif os.getenv('FLASK_ENV') == 'production':
-        app.config.from_object("config.ProductionConfig")
-    else:
-        app.config.from_object("config.DevelopmentConfig")
+    
 
     setup_db(app)
-
+    configure_app(app)
     
     mail_queue = Queue('mail',connection=conn)
+    notification_queue = Queue('notification',connection=conn)
     
     
     
@@ -133,7 +128,45 @@ def create_app():
             return f(current_user,*args,**kwargs)
         
         return decorated
+        
+    @app.route('/Notification/Subscribe',methods=['POST'])
+    @token_required
+    def subscribetonotification(current_user):
+        data = request.get_json()
 
+        usernumber = current_user.usernumber
+        devicepushtoken = data.get('devicepushtoken')
+        platform = data.get('platform')
+
+        token = userpntokenModel.query.\
+                filter(userpntokenModel.usernumber == usernumber).\
+                filter(userpntokenModel.devicepushtoken == devicepushtoken).\
+                first()
+        
+        if token is not None :
+            return make_response(
+                jsonify(
+                    {
+                        "status" : False,
+                        "message" : "Device is alredy registered with this usernumber",
+                    },
+                ),
+                200
+            )
+        else :
+            if platform == 'android':
+                platformarn = app.config['FCM_ARN']
+                notification_queue.enqueue(subscribetonotification,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],platformarn,usernumber,devicepushtoken,platform)
+
+            return make_response(
+                jsonify(
+                    {
+                        "status" : True,
+                        "message" : "Device registered with this usernumber",
+                    },
+                ),
+                200
+            )
 
 
 
@@ -592,7 +625,49 @@ def create_app():
             )
 
 
+    @app.route('/Book/Upload/Image',methods=['POST','PUT'])
+    @token_required
+    def uploadbookimage(current_user):
+        if request.method == 'POST':
+            book_img = request.files['book_img']
+            filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
+            response = upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,app.config['BUCKET'],body=book_img)
+            book_img_url = app.config['BUCKET_LINK']+filename
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Image uploaded",
+                                "status" : True,
+                                "response" : {
+                                    "book" : book_img_url
+                                }
+                    }
+                ),
+                201
+            )
+
+        else:
+            old_book_url = request.form.get("old_book_img_url")
+            old_book_filename = old_book_url.replace(app.config['BUCKET_LINK'],"")
+            remove_response = remove_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],old_book_filename,app.config['BUCKET'])
+            book_img = request.files['book_img']
+            filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
+            upload_response = upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,app.config['BUCKET'],body=book_img)
+            book_img_url = app.config['BUCKET_LINK']+filename
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Image changed succesfully",
+                                "status" : True,
+                                "response" : {
+                                    "book" : book_img_url
+                                }
+                    }
+                ),
+                201
+            )
             
+
 
     @app.route('/Book/Upload',methods=['POST'])
     @token_required
@@ -609,7 +684,7 @@ def create_app():
         filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
         upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,BUCKET,body=book_img)
         
-        book_img_url = BUCKET_LINK+filename
+        book_img_url = app.config['BUCKET_LINK']+filename
 
         book = bookModel(
             book_name  = book_name,
@@ -1923,5 +1998,6 @@ app = create_app()
 
 
 if __name__ == "__main__":
+    
     port = int(os.environ.get("PORT",5000))
     app.run(host='127.0.0.1',port=port,debug = True)
