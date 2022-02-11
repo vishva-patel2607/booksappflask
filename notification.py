@@ -1,4 +1,4 @@
-from models import userpntokenModel
+from models import booksubjectsModel, userpntokenModel
 import time
 import boto3
 
@@ -26,15 +26,13 @@ def subscribetonotification(access_key_id,access_key,platformarn,usernumber,devi
 
 
 
-def getawsarnendpoint(usernumber,devicetoken):
-    print("in the function")
-    
-    time.sleep(10)
-    awsarnendpoint = str(usernumber+devicetoken)
-    temp = userpntokenModel(
-                    usernumber = usernumber,
-                    devicetoken = devicetoken,
-                    awsarnendpoint = awsarnendpoint
-                )
-    temp.insert()
-    print(temp.details())
+def sendsmsmessage(access_key_id,access_key,number,message):
+    sns = boto3.client("sns", 
+                        aws_access_key_id=access_key_id,
+                        aws_secret_access_key=access_key
+                    )
+    no = '+91'+str(number)
+    sns.publish(
+        PhoneNumber=no,
+        Message= message 
+    )

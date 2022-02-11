@@ -11,7 +11,7 @@ from redisconnection import conn
 
 
 
-listen = ['mail', 's3', 'notification']
+listen = ['mail', 'utility', 'notification']
 
 
 app.app_context().push()

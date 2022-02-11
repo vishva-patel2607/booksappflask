@@ -3,7 +3,7 @@ import os
 class BaseConfig(object):
     DEBUG = False
     TESTING = False
-    AWS_ACCESS_KEY_ID=os.getenv('AWS_ACCESS_KEY_ID'),
+    AWS_ACCESS_KEY_ID=os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY=os.getenv('AWS_SECRET_ACCESS_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAILER_ADDRESS = "booksapp2021@gmail.com"
