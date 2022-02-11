@@ -1,4 +1,7 @@
 from crypt import methods
+from email import message
+import json
+from multiprocessing import connection
 import os
 from flask import Flask,render_template, request, abort, jsonify ,make_response, session
 from flask.helpers import url_for
@@ -23,9 +26,9 @@ from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
 import enum
 from jinja2 import TemplateNotFound
-from notification import subscribetonotification
+from notification import subscribetonotification,sendsmsmessage
 from config import configure_app
-
+from utility import booksubjectAdd,generateOTP
 
 
 from mail import sendverifymail,sendchangepasswordmail
@@ -53,6 +56,7 @@ def create_app():
     
     mail_queue = Queue('mail',connection=conn)
     notification_queue = Queue('notification',connection=conn)
+    utility_queue = Queue('notification',connection=conn)
     
     
     
@@ -168,6 +172,89 @@ def create_app():
                 200
             )
 
+    @app.route('/User/Verify/Phonenumber/<usernumber>/<phonenumber>',methods=['GET','POST'])
+    def testingmessaging(usernumber=None,phonenumber=None):
+        usernumber = usernumber
+        phonenumber = phonenumber
+        user = userModel.query.filter(userModel.usernumber == usernumber).first()
+
+        if usernumber is not None and phonenumber is not None and user is not None: #and user.phn_verified is not None and user.phn_verified != False:
+            if request.method == 'GET':
+                otp = generateOTP()
+
+                conn.set(
+                        usernumber,
+                        json.dumps({
+                                'usernumber': usernumber,
+                                'phonenumber': phonenumber,
+                                'OTP' : otp
+                            }),
+                        ex=600
+                        )
+                message = str('The OTP for verifying your Booksapp account mobile number is : '+otp)
+                sendsmsmessage(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],phonenumber,message)
+                return make_response(
+                                jsonify(
+                                    {
+                                        "status" : True,
+                                        "message" : "Message with OTP sent!"
+                                    },
+                                ),
+                                200
+                            )
+            else:
+                data = request.get_json()
+                request_otp = data.get('otp')
+                byte_value= conn.get(usernumber)
+                
+                if byte_value is None:
+                    return make_response(
+                                jsonify(
+                                    {
+                                        "status" : False,
+                                        "message" : "Could not verify!"
+                                    },
+                                ),
+                                400
+                            )
+                else:
+                    value = json.loads(byte_value.decode('utf-8'))
+                    if value['OTP'] == request_otp and phonenumber == value['phonenumber']:
+                        conn.delete(usernumber)
+                        user.phonenumber = value['phonenumber']
+                        user.phn_verified = True
+                        user.phn_verified_on = datetime.utcnow()
+                        user.update()
+
+                        return make_response(
+                                jsonify(
+                                    {
+                                        "status" : True,
+                                        "message" : "User phone number verified"
+                                    },
+                                ),
+                                201
+                            )
+                    else :
+                        return make_response(
+                                jsonify(
+                                    {
+                                        "status" : False,
+                                        "message" : "OTP did not match"
+                                    },
+                                ),
+                                400
+                            )
+        else:
+            return make_response(
+                                jsonify(
+                                    {
+                                        "status" : False,
+                                        "message" : "Cannot verify this user!"
+                                    },
+                                ),
+                                404
+                            )
 
 
 
@@ -312,10 +399,9 @@ def create_app():
                 )
 
         
-        user_username = userModel.query.filter_by(username = username).first()
-        user_email = userModel.query.filter_by(email = email).first()
+        user_test = userModel.query.filter((userModel.username == username) | (userModel.email == email)).first()
 
-        if not user_username and not user_email:
+        if user_test is None:
 
             user = userModel(
                 username = username,
@@ -357,6 +443,10 @@ def create_app():
                         {
                             "message" : "User already exists",
                             "status" : False,
+                            "response" : {
+
+                                            "user" : user_test.details()
+                                        }                                                   #please delete once otp feature is done!
                         }
                     ),
                 400,
@@ -675,16 +765,13 @@ def create_app():
         book_name = request.form.get("book_name")
         book_year = request.form.get("book_year")
         book_condition = request.form.get("book_condition")
-        book_img = request.files['book_img']
+        book_img_url = request.form.get('book_img_url')
         book_price = int(request.form.get('book_price'))
         store_id = request.form.get('store_id')
         usernumber = current_user.usernumber
         book_author = request.form.get('book_author')
-
-        filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
-        upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,BUCKET,body=book_img)
-        
-        book_img_url = app.config['BUCKET_LINK']+filename
+        book_category = request.form.get('book_category')
+        book_isbn = request.form.get('book_isbn')
 
         book = bookModel(
             book_name  = book_name,
@@ -694,11 +781,15 @@ def create_app():
             book_price = book_price,
             store_id = store_id,
             usernumber = usernumber,
-            book_author = book_author
+            book_author = book_author,
+            book_isbn= book_isbn,
+            book_category=book_category
         )
 
         book.insert()
 
+
+        utility_queue.enqueue(booksubjectAdd,book.book_id,book.book_isbn)
 
         transaction = transactionModel(
             book_id= book.book_id,
