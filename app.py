@@ -430,6 +430,9 @@ def create_app():
                         {
                             "message" : "Registration successful",
                             "status" : True,
+                            "response" : {
+                                    "user" : user.details()
+                            }
                         }
                     ),
                 201,
