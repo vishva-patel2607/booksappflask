@@ -144,7 +144,7 @@ def create_app():
 
         token = userpntokenModel.query.\
                 filter(userpntokenModel.usernumber == usernumber).\
-                filter(userpntokenModel.devicepushtoken == devicepushtoken).\
+                filter(userpntokenModel.devicetoken == devicepushtoken).\
                 first()
         
         if token is not None :
@@ -311,7 +311,10 @@ def create_app():
 
 
         if check_password_hash(user.password, auth.get('password')):
-            if not user.email_verified or user.email_verified == None:
+            emailverified = True
+            phoneverified = True
+            if not user.email_verified or user.email_verified is None:
+                emailverified = False
                 token = jwt.encode({
                     'usernumber': user.usernumber,
                     'exp': datetime.utcnow() + timedelta(minutes = 30)
@@ -321,6 +324,8 @@ def create_app():
                 template = render_template('verifyTokenEmail.html',url = url)
                 mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
                 
+            if not user.phn_verified or user.phn_verified is None:
+                phoneverified = False
                 return make_response(
                         jsonify(
                             {
@@ -328,13 +333,14 @@ def create_app():
                                 "status" : False,
                                 "response" : {
 
-                                            "token" : token,
-                                            "email" : user.email,
+                                            "emailverified" : emailverified,
+                                            "phoneverified" : phoneverified
                                         }
                             }
                         ),
-                        201
+                        402
                     )
+                
             token = jwt.encode({
                 'usernumber': user.usernumber,
                 'exp': datetime.utcnow() + timedelta(minutes = 1000)
@@ -349,7 +355,9 @@ def create_app():
 
                                             "token" : token,
                                             "username" : user.username,
-                                            "usernumber" : user.usernumber
+                                            "usernumber" : user.usernumber,
+                                            "emailverified" : emailverified,
+                                            "phoneverified" : phoneverified
                                         }
                         }
                     ),
@@ -1321,68 +1329,74 @@ def create_app():
                     401,
                     {'WWW-Authenticate' : 'User does not exist'}
                 )
-        elif user.email_verified and user.email_verified != None:
-            
-            if check_password_hash(user.password, auth.get('password')):
+        if check_password_hash(user.password, auth.get('password')):
+            emailverified = True
+            phoneverified = True
+            if not user.email_verified or user.email_verified is None:
+                emailverified = False
                 token = jwt.encode({
-                    'usernumber': user.usernumber,
-                    'exp': datetime.utcnow() + timedelta(minutes = 1000)
-                },app.config['SECRET_KEY'],algorithm="HS256")
-
-                store = storeModel.query.filter_by(usernumber = user.usernumber).first()
-                return make_response(
-                        jsonify(
-                            {
-                                "message" : "Log In successfull",
-                                "status" : True,
-                                "response" : {
-
-                                                "token" : token,
-                                                "username" : user.username,
-                                                "usernumber" : user.usernumber,
-                                                "store_id" : store.store_id 
-                                            }
-                            }
-                        ),
-                        201
-                    )
-            else:
-                return make_response( 
-                            jsonify(
-                                {
-                                    "message" : "Incorrect password",
-                                    "status" : False,
-                                }
-                            ),
-                            401,
-                            {'WWW-Authenticate' : 'Incorrect password'}
-                        )
-        else:
-            token = jwt.encode({
                     'usernumber': user.usernumber,
                     'exp': datetime.utcnow() + timedelta(minutes = 30)
                 },app.config['SECRET_KEY'],algorithm="HS256")
 
-            url = url_for('verifyuser',token = token,_external=True)
-            template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                url = url_for('verifyuser',token = token,_external=True)
+                template = render_template('verifyTokenEmail.html',url = url)
+                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                
+            if not user.phn_verified or user.phn_verified is None:
+                phoneverified = False
+                return make_response(
+                        jsonify(
+                            {
+                                "message" : "User is not verified",
+                                "status" : False,
+                                "response" : {
 
-            
+                                            "emailverified" : emailverified,
+                                            "phoneverified" : phoneverified
+                                        }
+                            }
+                        ),
+                        402
+                    )
+                
+            token = jwt.encode({
+                'usernumber': user.usernumber,
+                'exp': datetime.utcnow() + timedelta(minutes = 1000)
+            },app.config['SECRET_KEY'],algorithm="HS256")
+
+            store = storeModel.query.filter_by(usernumber = user.usernumber).first()
+
             return make_response(
-                    jsonify(
-                        {
-                            "message" : "User is not verified",
-                            "status" : False,
+                jsonify(
+                    {
+                        "message" : "Log In successfull",
+                            "status" : True,
                             "response" : {
 
-                                        "token" : token,
-                                        "email" : user.email,
-                                    }
+                                            "token" : token,
+                                            "username" : user.username,
+                                            "usernumber" : user.usernumber,
+                                            "store_id" : store.store_id,
+                                            "emailverified" : emailverified,
+                                            "phoneverified" : phoneverified
+                                        }
+
+                    }
+                )
+            )
+
+        return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Incorrect password",
+                            "status" : False,
                         }
                     ),
-                    201
+                    401,
+                    {'WWW-Authenticate' : 'Incorrect password'}
                 )
-
+        
 
         
     @app.route('/Store/Books/Pickups', methods=['POST'])
