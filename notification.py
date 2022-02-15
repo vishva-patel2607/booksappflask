@@ -4,6 +4,7 @@ import boto3
 
 def subscribetonotification(access_key_id,access_key,platformarn,usernumber,devicepushtoken,platform):
     sns = boto3.client("sns", 
+                        region_name='ap-south-1',
                         aws_access_key_id=access_key_id,
                         aws_secret_access_key=access_key
                     )
@@ -28,6 +29,7 @@ def subscribetonotification(access_key_id,access_key,platformarn,usernumber,devi
 
 def sendsmsmessage(access_key_id,access_key,number,message):
     sns = boto3.client("sns", 
+                        region_name='ap-south-1',
                         aws_access_key_id=access_key_id,
                         aws_secret_access_key=access_key
                     )
