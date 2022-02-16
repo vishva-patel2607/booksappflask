@@ -162,15 +162,25 @@ def create_app():
                 platformarn = app.config['FCM_ARN']
                 notification_queue.enqueue(subscribetonotification,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],platformarn,usernumber,devicepushtoken,platform)
 
+                return make_response(
+                    jsonify(
+                        {
+                            "status" : True,
+                            "message" : "Device registered with this usernumber",
+                        },
+                    ),
+                    200
+                )
+
             return make_response(
-                jsonify(
-                    {
-                        "status" : True,
-                        "message" : "Device registered with this usernumber",
-                    },
-                ),
-                200
-            )
+                    jsonify(
+                        {
+                            "status" : False,
+                            "message" : "Device not registered",
+                        },
+                    ),
+                    200
+                )
 
     @app.route('/User/Verify/Phonenumber/<usernumber>/<phonenumber>',methods=['GET','POST'])
     def testingmessaging(usernumber=None,phonenumber=None):
@@ -1353,7 +1363,8 @@ def create_app():
                                 "response" : {
 
                                             "emailverified" : emailverified,
-                                            "phoneverified" : phoneverified
+                                            "phoneverified" : phoneverified,
+
                                         }
                             }
                         ),
