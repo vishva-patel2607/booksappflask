@@ -135,7 +135,7 @@ def create_app():
         
     @app.route('/Notification/Subscribe',methods=['POST'])
     @token_required
-    def subscribetonotification(current_user):
+    def usersubscribetonotification(current_user):
         data = request.get_json()
 
         usernumber = current_user.usernumber
