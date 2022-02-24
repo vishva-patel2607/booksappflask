@@ -21,6 +21,7 @@ class store_transaction_statuses:
     removed_by_lender = "Removed by lender, Transaction finished"
     dropoff_by_borrower = "Has lender and shop share"
     pickup_by_lender = "Received their share, Transaction finished"
+    transaction_invoiced = "Transaction Invoiced"
     payment_collected = "Collected payment from shop"
 
 
@@ -30,6 +31,11 @@ class borrower_transaction_statuses:
     pending = "Pending"
     dropoff_by_borrower = "Received their share, Transaction finished"
     pickup_by_borrower = "Paid full book price"
+
+
+class invoice_statuses:
+    pending = "Pending"
+    paid = "Paid"
 
 
 

@@ -310,6 +310,7 @@ class transactionModel(db.Model):
     lender_id = db.Column(db.BigInteger)
     store_id = db.Column(db.BigInteger)
     borrower_id = db.Column(db.BigInteger)
+    invoice_id = db.Column(db.BigInteger)
     lender_transaction_status = db.Column(db.String(100))
     store_transaction_status = db.Column(db.String(100))
     borrower_transaction_status = db.Column(db.String(100))
@@ -325,12 +326,13 @@ class transactionModel(db.Model):
     transaction_lenderpickup_ts = db.Column(db.DateTime)
 
 
-    def __init__(self, book_id, transaction_status,lender_id , store_id, borrower_id, lender_transaction_status, store_transaction_status, borrower_transaction_status, book_price, transaction_upload_ts, transaction_submit_ts, transaction_pickup_ts, transaction_return_ts, transaction_lenderpickup_ts): 
+    def __init__(self, book_id, transaction_status,lender_id , store_id, borrower_id, invoice_id, lender_transaction_status, store_transaction_status, borrower_transaction_status, book_price, transaction_upload_ts, transaction_submit_ts, transaction_pickup_ts, transaction_return_ts, transaction_lenderpickup_ts): 
         self.book_id  = book_id
         self.transaction_status = transaction_status
         self.lender_id = lender_id
         self.store_id = store_id
         self.borrower_id = borrower_id
+        self.invoice_id = invoice_id
         self.lender_transaction_status = lender_transaction_status
         self.store_transaction_status = store_transaction_status
         self.borrower_transaction_status = borrower_transaction_status
@@ -351,6 +353,7 @@ class transactionModel(db.Model):
             "lender_id" : self.lender_id,
             "store_id" : self.store_id,
             "borrower_id" : self.borrower_id, 
+            "invoice_id" : self.invoice_id,
             "lender_transaction_status" : self.lender_transaction_status,
             "store_transaction_status" : self.store_transaction_status,
             "borrower_transaction_status" : self.borrower_transaction_status,
@@ -491,3 +494,48 @@ class transactionModel(db.Model):
 
 
 
+class invoiceModel(db.Model):
+    __tablename__ = 'booksapp_invoice'
+    invoice_id = db.Column(db.BigInteger, primary_key=True)
+    store_id = db.Column(db.BigInteger)
+    invoice_status = db.Column(db.Text)
+    invoice_url = db.Column(db.Text)
+    invoice_total = db.Column(db.Text)
+    confirmed_usernumber = db.Column(db.BigInteger)
+    invoice_date  = db.Column(db.DateTime)
+    payment_date = db.Column(db.DateTime)
+   
+
+
+    def __init__(self,store_id, invoice_status, invoice_total, invoice_date): 
+        self.store_id = store_id
+        self.invoice_status = invoice_status
+        self.invoice_total = invoice_total
+        self.invoice_date = invoice_date
+        self.invoice_url = None
+        self.confirmed_usernumber = None
+        self.payment_date = None
+
+    def details(self):
+        return {
+            "invoice_id" : self.invoice_id,
+            "store_id" : self.store_id,
+            "invoice_status": self.invoice_status,
+            "invoice_url" : self.invoice_url,
+            "invoice_total" : self.invoice_total,
+            "confirmed_usernumber" : self.confirmed_usernumber,
+            "invoice_date" : self.invoice_date,
+            "payment_date" : self.payment_date
+        }
+
+    def insert(self):
+        db.session.add(self)
+        db.session.commit()
+
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
+    def update(self):
+        db.session.commit()
