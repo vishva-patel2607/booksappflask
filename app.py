@@ -135,7 +135,7 @@ def create_app():
         
     @app.route('/Notification/Subscribe',methods=['POST'])
     @token_required
-    def subscribetonotification(current_user):
+    def usersubscribetonotification(current_user):
         data = request.get_json()
 
         usernumber = current_user.usernumber
@@ -162,15 +162,25 @@ def create_app():
                 platformarn = app.config['FCM_ARN']
                 notification_queue.enqueue(subscribetonotification,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],platformarn,usernumber,devicepushtoken,platform)
 
+                return make_response(
+                    jsonify(
+                        {
+                            "status" : True,
+                            "message" : "Device registered with this usernumber",
+                        },
+                    ),
+                    200
+                )
+
             return make_response(
-                jsonify(
-                    {
-                        "status" : True,
-                        "message" : "Device registered with this usernumber",
-                    },
-                ),
-                200
-            )
+                    jsonify(
+                        {
+                            "status" : False,
+                            "message" : "Device not registered",
+                        },
+                    ),
+                    200
+                )
 
     @app.route('/User/Verify/Phonenumber/<usernumber>/<phonenumber>',methods=['GET','POST'])
     def testingmessaging(usernumber=None,phonenumber=None):
@@ -808,6 +818,7 @@ def create_app():
             lender_id= usernumber,
             store_id= store_id,
             borrower_id= None,
+            invoice_id = None,
             lender_transaction_status= lender_transaction_statuses.pending,
             store_transaction_status= store_transaction_statuses.pending,
             borrower_transaction_status = borrower_transaction_statuses.pending,
@@ -1353,7 +1364,8 @@ def create_app():
                                 "response" : {
 
                                             "emailverified" : emailverified,
-                                            "phoneverified" : phoneverified
+                                            "phoneverified" : phoneverified,
+
                                         }
                             }
                         ),
@@ -1846,7 +1858,7 @@ def create_app():
                                         all()
                 books_lent_currently = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
-                                        filter(transactionModel.transaction_status.notin_([transaction_statuses.uploaded_with_lender,transaction_statuses.removed_by_lender,transaction_statuses.submitted_by_lender,transaction_statuses.submitted_by_borrower])).\
+                                        filter(transactionModel.transaction_status.notin_([transaction_statuses.uploaded_with_lender,transaction_statuses.removed_by_lender,transaction_statuses.submitted_by_lender,transaction_statuses.submitted_by_borrower,transaction_statuses.pickup_by_lender])).\
                                         order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all() 
                 books_lent_pickup = transactionModel.query.\

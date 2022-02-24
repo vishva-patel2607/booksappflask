@@ -2,7 +2,7 @@ import os
 
 import redis
 from rq import Worker, Queue, Connection
-from app import app
+from app import create_app
 from redisconnection import conn
 
 
@@ -13,7 +13,7 @@ from redisconnection import conn
 
 listen = ['mail', 'utility', 'notification']
 
-
+app = create_app()
 app.app_context().push()
 
 if __name__ == '__main__':
