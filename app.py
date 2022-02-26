@@ -3,13 +3,14 @@ from email import message
 import json
 from multiprocessing import connection
 import os
-from flask import Flask,render_template, request, abort, jsonify ,make_response, session
+from flask import Flask,render_template, request, abort, jsonify ,make_response, session, redirect
+
 from flask.helpers import url_for
 from flask_cors import CORS
 from sqlalchemy.sql.expression import true
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.type_api import NULLTYPE
-from models import setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db, userpntokenModel
+from models import invoiceModel, setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db, userpntokenModel
 
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
@@ -20,7 +21,7 @@ from datetime import datetime, timedelta,date
 from s3_functions import upload_file,remove_file
 from werkzeug.utils import secure_filename
 import boto3
-from status import transaction_statuses,lender_transaction_statuses,store_transaction_statuses,borrower_transaction_statuses
+from status import invoice_statuses, transaction_statuses,lender_transaction_statuses,store_transaction_statuses,borrower_transaction_statuses
 from geoalchemy2.types import Geometry
 from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
@@ -28,7 +29,7 @@ import enum
 from jinja2 import TemplateNotFound
 from notification import subscribetonotification,sendsmsmessage
 from config import configure_app
-from utility import booksubjectAdd,generateOTP
+from utility import booksubjectAdd, generateBill,generateOTP
 
 
 from mail import sendverifymail,sendchangepasswordmail
@@ -743,7 +744,7 @@ def create_app():
             book_img = request.files['book_img']
             filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
             response = upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,app.config['BUCKET'],body=book_img)
-            book_img_url = app.config['BUCKET_LINK']+filename
+            book_img_url = app.config['IMAGE_BUCKET_LINK']+filename
             return make_response(
                 jsonify(
                     {
@@ -759,12 +760,12 @@ def create_app():
 
         else:
             old_book_url = request.form.get("old_book_img_url")
-            old_book_filename = old_book_url.replace(app.config['BUCKET_LINK'],"")
+            old_book_filename = old_book_url.replace(app.config['IMAGE_BUCKET_LINK'],"")
             remove_response = remove_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],old_book_filename,app.config['BUCKET'])
             book_img = request.files['book_img']
             filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
             upload_response = upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,app.config['BUCKET'],body=book_img)
-            book_img_url = app.config['BUCKET_LINK']+filename
+            book_img_url = app.config['IMAGE_BUCKET_LINK']+filename
             return make_response(
                 jsonify(
                     {
@@ -2097,6 +2098,61 @@ def create_app():
 
             if transaction and transaction!= None:
                 return render_template('transactioninfo.html',transaction = transaction)
+    
+        return render_template('404.html')
+
+
+    @app.route('/Admin/Store/Generateinvoice/<int:store_id>',methods=['GET'])
+    @token_required_admin
+    def generatestoreinvoice(admin,store_id = None):
+
+        if store_id is not None:
+            store = storeModel.query.filter_by(store_id = store_id).first()
+            pending_transactions = transactionModel.query.\
+                                    filter(transactionModel.store_id == store_id).\
+                                    filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
+                                    order_by(transactionModel.transaction_upload_ts.desc()).\
+                                    all()
+            if store and invoice is not None and pending_transactions and pending_transactions is not None:
+                invoice = invoiceModel(
+                    store_id= store.store_id,
+                    invoice_status= invoice_statuses.pending,
+                    invoice_date= datetime.utcnow()
+                )
+                invoice.insert()
+
+                total = 0
+                for transactions in pending_transactions:
+                    total += transactions.store_cost
+                    transactions.store_transaction_status = store_transaction_statuses.transaction_invoiced
+                    transactions.invoice_id = invoice.invoice_id
+                    transactions.update()
+
+
+
+                filename = generateBill(store,pending_transactions,invoice,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['BUCKET'])
+
+                invoice.invoice_url = app.config['INVOICE_BUCKET_LINK'] + filename
+                invoice.invoice_total = total
+                invoice.update()
+
+                return redirect(invoice.invoice_url)
+            else:
+                return redirect('404.html')
+    
+        return render_template('404.html')
+
+    
+    @app.route('/Admin/Invoice/<int:invoice_id>',methods=['GET'])
+    @token_required_admin
+    def admingetinvoice(user,invoice_id = None):
+
+        if invoice_id != None:
+            invoice = invoiceModel.query.filter_by(invoice_id = invoice_id).first()
+
+            if invoice and invoice!= None:
+                transactions = transactionModel.query.filter(transactionModel.invoice_id == invoice.invoice_id).all()
+                return render_template('invoiceinfo.html',transactions = transactions,invoice = invoice)
     
         return render_template('404.html')
 

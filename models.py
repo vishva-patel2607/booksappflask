@@ -507,10 +507,10 @@ class invoiceModel(db.Model):
    
 
 
-    def __init__(self,store_id, invoice_status, invoice_total, invoice_date): 
+    def __init__(self,store_id, invoice_status, invoice_date): 
         self.store_id = store_id
         self.invoice_status = invoice_status
-        self.invoice_total = invoice_total
+        self.invoice_total = None
         self.invoice_date = invoice_date
         self.invoice_url = None
         self.confirmed_usernumber = None
