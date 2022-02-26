@@ -9,7 +9,8 @@ class BaseConfig(object):
     MAILER_ADDRESS = "booksapp2021@gmail.com"
     BUCKET = "booksapp-image-data"
     BOOK_UPLOAD_FOLDER = "uploads"
-    BUCKET_LINK = "https://booksapp-image-data.s3.ap-south-1.amazonaws.com/book-image-folder/"
+    IMAGE_BUCKET_LINK = "https://booksapp-image-data.s3.ap-south-1.amazonaws.com/book-image-folder/"
+    INVOICE_BUCKET_LINK = "https://booksapp-image-data.s3.ap-south-1.amazonaws.com/booksapp-store-invoices/"
     FCM_ARN = "arn:aws:sns:ap-south-1:252518801138:app/GCM/booksapp-fcm"
     
 
