@@ -2110,10 +2110,10 @@ def create_app():
             store = storeModel.query.filter_by(store_id = store_id).first()
             pending_transactions = transactionModel.query.\
                                     filter(transactionModel.store_id == store_id).\
-                                    filter(transactionModel.store_transaction_status == store_transaction_statuses.removed_by_lender).\
+                                    filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
                                     order_by(transactionModel.transaction_upload_ts.desc()).\
                                     all()
-                                    #filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
+                                    
             if store and store is not None and pending_transactions and pending_transactions is not None:
                 invoice = invoiceModel(
                     store_id= store.store_id,
@@ -2131,7 +2131,7 @@ def create_app():
 
 
 
-                filename = generateBill(store,pending_transactions,invoice,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['BUCKET'])
+                filename = generateBill(admin,store,pending_transactions,invoice,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['BUCKET'])
 
                 invoice.invoice_url = app.config['INVOICE_BUCKET_LINK'] + filename
                 invoice.invoice_total = total

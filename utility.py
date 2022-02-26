@@ -31,7 +31,7 @@ def generateOTP():
  
     return OTP
 
-def generateBill(store,transactions,invoice_data,access_key_id,access_key, bucket):
+def generateBill(admin,store,transactions,invoice_data,access_key_id,access_key, bucket):
     os.environ["INVOICE_LANG"] = "en"
 
     client_details = "Store Name : " + store.store_name + "\n" + \
@@ -50,7 +50,7 @@ def generateBill(store,transactions,invoice_data,access_key_id,access_key, bucke
                         bank_code='bank code here'
                         )
     
-    creator = Creator('BooksApp')
+    creator = Creator(str(admin.firstname+" "+admin.lastname))
     invoice = Invoice(client, provider, creator)
 
     for transaction in transactions:
