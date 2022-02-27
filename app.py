@@ -891,7 +891,7 @@ def create_app():
         book_id = data.get('book_id')
         book_name = data.get('book_name')
         book_author = data.get('book_author')
-        book_price = int(data.get('book_price'))
+        #book_price = int(data.get('book_price'))
         book_condition = data.get('book_condition')
         book_year = data.get('book_year')
 
@@ -899,10 +899,10 @@ def create_app():
 
         book.book_name = book_name
         book.book_author = book_author
-        book.book_price = book_price
+        #book.book_price = book_price
         book.book_condition = book_condition
         book.book_year = book_year
-        book.setprice()
+        #book.setprice()
         book.update()
 
         return make_response(

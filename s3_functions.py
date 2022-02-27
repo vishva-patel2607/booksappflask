@@ -17,7 +17,14 @@ def remove_file(access_key_id,access_key,file_name, bucket):
                                 aws_access_key_id=access_key_id,
                                 aws_secret_access_key=access_key
                             )
-    response = s3_client.Bucket(bucket).delete_object(Key = object_name)
+    response = s3_client.Bucket(bucket).delete_objects(Delete={
+                                                                    'Objects': [
+                                                                        {
+                                                                            'Key': object_name
+                                                                        },
+                                                                    ],
+                                                                    'Quiet': True
+                                                                })
     return response
     
 
