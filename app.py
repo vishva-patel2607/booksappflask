@@ -2200,7 +2200,28 @@ def create_app():
     
         return render_template('404.html')
 
+    @app.route('/Admin/Confirmpayment',methods=['POST'])
+    @token_required_admin
+    def confirmpayment(user):
 
+        invoice_id = request.form.get('invoiceid')
+        if invoice_id != None:
+            invoice = invoiceModel.query.filter_by(invoice_id = invoice_id).first()
+
+            if invoice and invoice!= None:
+
+                invoice.invoice_status = invoice_statuses.paid
+                invoice.payment_date = datetime.utcnow()
+                invoice.confirmed_usernumber = user.usernumber
+                invoice.update()
+
+                transactions = transactionModel.query.filter(transactionModel.invoice_id == invoice.invoice_id).all()
+                for transac in transactions:
+                    transac.store_transaction_status = store_transaction_statuses.payment_collected
+                    transac.update()
+                redirect('/Admin/Invoice/'+str(invoice_id))
+
+        return render_template('404.html')
 
 
     @app.route('/',methods=['GET'])
