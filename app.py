@@ -388,92 +388,130 @@ def create_app():
                     {'WWW-Authenticate' : 'Incorrect password'}
                 )
 
-
+    @app.route('/User/Signup/<string:username>/<string:email>',methods=['GET'])
     @app.route('/User/Signup', methods=['POST'])
-    def signup():
-        data = request.get_json()
+    def signup(username=None,email=None):
+        if request.method == 'POST':
+            data = request.get_json()
 
-        username = data.get('username')
-        password = data.get('password')
-        email = data.get('email')
-        firstname = data.get('firstname')
-        lastname = data.get('lastname')
-        year = data.get('year')
-        month = data.get('month')
-        day = data.get('day')
-        phonenumber = data.get('phonenumber')
+            username = data.get('username').lower()
+            password = data.get('password')
+            email = data.get('email').lower()
+            firstname = data.get('firstname').lower()
+            lastname = data.get('lastname').lower()
+            year = data.get('year')
+            month = data.get('month')
+            day = data.get('day')
+            phonenumber = data.get('phonenumber')
 
-        
-        try:
-            dob = date(int(year),int(month),int(day))
-        except:
-            return make_response( 
-                    jsonify(
-                        {
-                            "message" : "Invalid Date",
-                            "status" : False,
-                        }
-                    ),
-                    400
+            
+            try:
+                dob = date(int(year),int(month),int(day))
+            except:
+                return make_response( 
+                        jsonify(
+                            {
+                                "message" : "Invalid Date",
+                                "status" : False,
+                            }
+                        ),
+                        400
+                    )
+
+            
+            user_test = userModel.query.filter((userModel.username == username) | (userModel.email == email)).first()
+
+            if user_test is None:
+
+                user = userModel(
+                    username = username,
+                    password = generate_password_hash(password),
+                    email = email,
+                    firstname = firstname,
+                    lastname = lastname,
+                    dob = dob,
+                    phonenumber = phonenumber,
+                    created_on=datetime.utcnow(),
+                    usertype = Usertype.user.name
                 )
 
-        
-        user_test = userModel.query.filter((userModel.username == username) | (userModel.email == email)).first()
+                user.insert()
+                token = jwt.encode({
+                    'usernumber': user.usernumber,
+                    'exp': datetime.utcnow() + timedelta(minutes = 30)
+                },app.config['SECRET_KEY'],algorithm="HS256")
 
-        if user_test is None:
+                url = url_for('verifyuser',token = token,_external=True)
+                template = render_template('verifyTokenEmail.html',url = url)
+                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
-            user = userModel(
-                username = username,
-                password = generate_password_hash(password),
-                email = email,
-                firstname = firstname,
-                lastname = lastname,
-                dob = dob,
-                phonenumber = phonenumber,
-                created_on=datetime.utcnow(),
-                usertype = Usertype.user.name
-            )
-
-            user.insert()
-            token = jwt.encode({
-                'usernumber': user.usernumber,
-                'exp': datetime.utcnow() + timedelta(minutes = 30)
-            },app.config['SECRET_KEY'],algorithm="HS256")
-
-            url = url_for('verifyuser',token = token,_external=True)
-            template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
-
-            return make_response(
-                jsonify(
-                        {
-                            "message" : "Registration successful",
-                            "status" : True,
-                            "response" : {
-                                    "user" : user.details()
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "Registration successful",
+                                "status" : True,
+                                "response" : {
+                                        "user" : user.details()
+                                }
                             }
-                        }
-                    ),
-                201,
-                {'WWW-Authenticate' : 'Registration successful'}
-            )
+                        ),
+                    201,
+                    {'WWW-Authenticate' : 'Registration successful'}
+                )
 
 
+            else:
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "User already exists",
+                                "status" : False,
+                                "response" : {
+
+                                                "user" : user_test.details()
+                                            }                                                   #please delete once otp feature is done!
+                            }
+                        ),
+                    400,
+                    {'WWW-Authenticate' : 'User already exists'}
+                )
         else:
-            return make_response(
-                jsonify(
-                        {
-                            "message" : "User already exists",
-                            "status" : False,
-                            "response" : {
+            if username is None or email is None:
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "Please provide both the information",
+                                "status" : False,
+                            }
+                        ),
+                    400,
+                    {'WWW-Authenticate' : 'Provide proper information'}
+                )
+            else:
+                user_check = userModel.query.filter((userModel.username == username.lower()) | (userModel.email == email.lower())).first()
 
-                                            "user" : user_test.details()
-                                        }                                                   #please delete once otp feature is done!
-                        }
-                    ),
-                400,
-                {'WWW-Authenticate' : 'User already exists'}
-            )
+                if user_check is None:
+                    return make_response(
+                        jsonify(
+                                {
+                                    "message" : "User can be created",
+                                    "status" : True,
+                                }
+                            ),
+                        200
+                    )
+                else:
+                    return make_response(
+                        jsonify(
+                                {
+                                    "message" : "User already exists",
+                                    "status" : False,
+                                }
+                            ),
+                        400,
+                        {'WWW-Authenticate' : 'User already exists'}
+                    )
+
 
     @app.route('/User/Verify/User/<token>',methods = ['GET'])
     def verifyuser(token):
@@ -1372,7 +1410,6 @@ def create_app():
                         ),
                         402
                     )
-                
             token = jwt.encode({
                 'usernumber': user.usernumber,
                 'exp': datetime.utcnow() + timedelta(minutes = 1000)
@@ -1985,6 +2022,11 @@ def create_app():
             all_books_info = bookModel.query.\
                             filter(bookModel.store_id == store.store_id).\
                             all()
+
+            invoices = invoiceModel.query.\
+                        filter(invoiceModel.store_id == store.store_id).\
+                        order_by(invoiceModel.invoice_date.desc()).\
+                        all()
                             
 
             tables = {
@@ -1999,6 +2041,7 @@ def create_app():
                                     store = store,
                                     user = user,
                                     all_books_info = all_books_info,
+                                    invoices = invoices,
                                     tables = tables
                                 )  
         else:
