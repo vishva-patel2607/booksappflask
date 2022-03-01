@@ -25,6 +25,7 @@ class ProductionConfig(BaseConfig):
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = "postgres://{}:{}@{}/{}".format('postgres', 'postgres', 'localhost:5432', 'booksapp')
+    #SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SECRET_KEY = "patel gang"
 
 class TestingConfig(BaseConfig):

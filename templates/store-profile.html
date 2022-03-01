@@ -41,7 +41,7 @@
     {% else %}
 
     <div class="row my-5">
-        <div class="col-md-6 col-lg-6 col-sm-12 mb-2 ">
+        <div class="col-md-6 col-lg-6 col-sm-12 mb-2 order-12">
             <div class="card shadow-lg p-2">
                 <div class="text-lg text-primary">{{user.firstname}} {{user.lastname}}</div>
                 <div clas="text-md text-info">Usernumber : {{user.usernumber}}</div>
@@ -57,19 +57,128 @@
             </div>
         </div>
 
-        <div class="col-md-6 col-lg-6 col-sm-12 mb-2 ">
-            <div class="card shadow-lg p-2">
+        <div class="col-md-6 col-lg-6 col-sm-12 mb-2 order-1">
+          <div class="row mb-3">
+            <div class="col-12">
+              <a class="btn btn-primary btn-user btn-block" href="/Admin/Store/Generateinvoice/{{store.store_id}}" target="_blank">Generate Invoice</a>
+            </div>
+              
+          </div>
+          <div class="row">
+            <div class="col-12">
+              <div class="card shadow-lg p-2">
                 <div class="text-lg text-primary">{{store.store_name}}</div>
                 <div clas="text-md text-info">Store Id : {{store.store_id}}</div>
                 <div clas="text-md text-info">Incharge : {{store.store_incharge}}</div>
                 <div clas="text-md text-info">Mobile Number : {{store.store_number}}</div>
                 <div clas="text-md text-info">Store Address : {{store.store_address}} - {{store.store_pincode}}</div>
             </div>
+            </div>
+              
+          </div>
+            
         </div>
         
             
         
     </div>
+
+    <div class="row">
+
+      <div class="col-lg-12 col-md-12 col-sm-12">
+          <div class = "row">
+
+              <div class="col-md-6 col-lg-3 mb-4">
+                  <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                      <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                          <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books Currently Idle</div>
+                          <div class="row no-gutters align-items-center">
+                            <div class="col-auto">
+                              <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books idle at the store']|length if tables['Books idle at the store']|length != none else "0"}} Books</div>
+                            </div>
+                            
+                          </div>
+                        </div>
+                        <div class="col-auto">
+                          <i class="fas fa-home fa-2x text-gray-300"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+                <div class="col-md-6 col-lg-3 mb-4">
+                  <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                      <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                          <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books to be Picked up</div>
+                          <div class="row no-gutters align-items-center">
+                            <div class="col-auto">
+                              <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books to be picked up']|length if tables['Books to be picked up']|length != none else "0"}} Books</div>
+                            </div>
+                            
+                          </div>
+                        </div>
+                        <div class="col-auto">
+                          <i class="fas fa-cart-plus fa-2x text-gray-300"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+                <div class="col-md-6 col-lg-3 mb-4">
+                  <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                      <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                          <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books that will be dropped off</div>
+                          <div class="row no-gutters align-items-center">
+                            <div class="col-auto">
+                              <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books that will be dropped off']|length if tables['Books that will be dropped off']|length != none else "0"}} Books</div>
+                            </div>
+                            
+                          </div>
+                        </div>
+                        <div class="col-auto">
+                          <i class="fas fa-cart-arrow-down fa-2x text-gray-300"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3 mb-4">
+                  <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                      <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                          <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Successful transactions done</div>
+                          <div class="row no-gutters align-items-center">
+                            <div class="col-auto">
+                              <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Past transactions']|length if tables['Past transactions']|length != none else "0"}} Books</div>
+                            </div>
+                            
+                          </div>
+                        </div>
+                        <div class="col-auto">
+                          <i class="fas fa-history fa-2x text-gray-300"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+
+          </div>
+      </div>
+  </div>
 
     <div class="row">
         <div class="col-lg-6 col-md-6 col-sm-12">
@@ -117,101 +226,54 @@
             </div>
 
         </div>
-
         <div class="col-lg-6 col-md-6 col-sm-12">
-            <div class = "row">
-
-                <div class="col-md-12 col-lg-6 mb-4">
-                    <div class="card border-left-info shadow h-100 py-2">
-                      <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                          <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books Currently Idle</div>
-                            <div class="row no-gutters align-items-center">
-                              <div class="col-auto">
-                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books idle at the store']|length if tables['Books idle at the store']|length != none else "0"}} Books</div>
-                              </div>
-                              
-                            </div>
-                          </div>
-                          <div class="col-auto">
-                            <i class="fas fa-home fa-2x text-gray-300"></i>
-                          </div>
-                        </div>
+          <div class="card shadow mb-4">
+              <div class="card-header py-3">
+                  <h6 class="m-0 font-weight-bold text-primary">Invoices</h6>
+              </div>
+              {% if invoices|length != 0 and invoices != None %}
+                  <div class="card-body">
+                      <div class="table-responsive">
+                          <table class="table table-bordered dataTable" id="dataTable" width="100%" cellspacing="0">
+                              <thead>
+                                  <tr>
+                                    <th>Invoice Status</th>
+                                    <th>Invoice ID</th>
+                                    <th>Total</th>
+                                    <th>Confirmed By</th>
+                                    <th>Invoice Copy</th>
+                                  </tr>
+                              </thead>
+                              <tfoot>
+                                  <tr>
+                                    <th>Invoice Status</th>
+                                    <th>Invoice ID</th>
+                                    <th>Total</th>
+                                    <th>Confirmed By</th>
+                                    <th>Invoice Copy</th>
+                                  </tr>
+                              </tfoot>
+                              <tbody>
+                              {% for invoice in invoices %}
+                                  <tr class={{"table-danger" if invoice.invoice_status == 'pending'}}>
+                                      <td>{{invoice.invoice_status}}</td>
+                                      <td><a class="text-gray-600" href="/Admin/Invoice/{{invoice.invoice_id}}" target="_blank" >{{invoice.invooice_id}}</a></td>
+                                      <td>{{invoice.invoice_total}}</td>
+                                      <td><a class="text-gray-600" href="/Admin/User/{{invoice.confirmed_usernumber}}" target="_blank" >{{invoice.confirmed_usernumber}}</a></td>
+                                      <td><a class="text-gray-600" href="{{invoice.invoice_url}}" target="_blank" >Link</a></td>
+                                  </tr>
+                              {% endfor %}
+                              </tbody>
+                          </table>
                       </div>
-                    </div>
                   </div>
+              {% endif %}
+          </div>
 
+      </div>
+      </div>
 
-                  <div class="col-md-12 col-lg-6 mb-4">
-                    <div class="card border-left-info shadow h-100 py-2">
-                      <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                          <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books to be Picked up</div>
-                            <div class="row no-gutters align-items-center">
-                              <div class="col-auto">
-                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books to be picked up']|length if tables['Books to be picked up']|length != none else "0"}} Books</div>
-                              </div>
-                              
-                            </div>
-                          </div>
-                          <div class="col-auto">
-                            <i class="fas fa-cart-plus fa-2x text-gray-300"></i>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-
-                  <div class="col-md-12 col-lg-6 mb-4">
-                    <div class="card border-left-info shadow h-100 py-2">
-                      <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                          <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Books that will be dropped off</div>
-                            <div class="row no-gutters align-items-center">
-                              <div class="col-auto">
-                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Books that will be dropped off']|length if tables['Books that will be dropped off']|length != none else "0"}} Books</div>
-                              </div>
-                              
-                            </div>
-                          </div>
-                          <div class="col-auto">
-                            <i class="fas fa-cart-arrow-down fa-2x text-gray-300"></i>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="col-md-12 col-lg-6 mb-4">
-                    <div class="card border-left-info shadow h-100 py-2">
-                      <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                          <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Successful transactions done</div>
-                            <div class="row no-gutters align-items-center">
-                              <div class="col-auto">
-                                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{tables['Past transactions']|length if tables['Past transactions']|length != none else "0"}} Books</div>
-                              </div>
-                              
-                            </div>
-                          </div>
-                          <div class="col-auto">
-                            <i class="fas fa-history fa-2x text-gray-300"></i>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-
-
-            </div>
-        </div>
-    </div>
+      
         
     {% if tables|length != 0 and tables!= None %}
         {% for title,data in tables.items() %}
