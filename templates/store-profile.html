@@ -255,9 +255,9 @@
                               </tfoot>
                               <tbody>
                               {% for invoice in invoices %}
-                                  <tr class={{"table-danger" if invoice.invoice_status == 'pending'}}>
+                                  <tr class={{"table-danger" if invoice.invoice_status == 'Pending'}}>
                                       <td>{{invoice.invoice_status}}</td>
-                                      <td><a class="text-gray-600" href="/Admin/Invoice/{{invoice.invoice_id}}" target="_blank" >{{invoice.invooice_id}}</a></td>
+                                      <td><a class="text-gray-600" href="/Admin/Invoice/{{invoice.invoice_id}}" target="_blank" >{{invoice.invoice_id}}</a></td>
                                       <td>{{invoice.invoice_total}}</td>
                                       <td><a class="text-gray-600" href="/Admin/User/{{invoice.confirmed_usernumber}}" target="_blank" >{{invoice.confirmed_usernumber}}</a></td>
                                       <td><a class="text-gray-600" href="{{invoice.invoice_url}}" target="_blank" >Link</a></td>

@@ -15,6 +15,10 @@
     <table class="table table-bordered " width="100%" cellspacing="2">
       <tbody>
         <tr>
+          <th colspan="2">Invoice Id</th>
+          <td ><a class="text-gray-600" href="/Admin/Invoice/{{transaction.invoice_id}}" target="_blank" >{{transaction.invoice_id if transaction.invoice_id is not none}}</a></td>
+        </tr>
+        <tr>
           <th colspan="2">Transaction Id</th>
           <td colspan="2"><a class="text-gray-600" href="/Admin/Transaction/{{transaction.transaction_id}}" target="_blank" >{{transaction.transaction_id}}</a></td>
           <th colspan="2">Transaction Status</th>
@@ -28,24 +32,24 @@
         </tr>
         <tr>
             <th colspan="2">Type</th>
-            <th colspan="1">Id</th>
-            <th colspan="2">Cost</th>
-            <th colspan="7"> Status</th>
+            <th class="table-secondary" colspan="1">Id</th>
+            <th class="table-secondary" colspan="2">Cost</th>
+            <th class="table-secondary" colspan="7"> Status</th>
         </tr>
         <tr>
-            <th colspan="2">Store</th>
+            <th class="table-secondary" colspan="2">Store</th>
             <td colspan="1"><a class="text-gray-600" href="/Admin/Store/{{transaction.store_id}}" target="_blank" >{{transaction.store_id if transaction.store_id is not none}}</a></td>
             <td colspan="2">{{transaction.store_cost}}</td>
             <td colspan="7">{{transaction.store_transaction_status if transaction.store_transaction_status is not none}}</td>
         </tr>
         <tr>
-          <th colspan="2">Lender</th>
+          <th class="table-secondary" colspan="2">Lender</th>
           <td colspan="1"><a class="text-gray-600" href="/Admin/User/{{transaction.lender_id}}" target="_blank" >{{transaction.lender_id }}</a></td>
           <td colspan="2">{{transaction.lender_cost}}</td>
           <td colspan="7">{{transaction.lender_transaction_status if transaction.lender_transaction_status is not none}}</td>
         </tr>
         <tr>
-            <th colspan="2">Borrower</th>
+            <th class="table-secondary" colspan="2">Borrower</th>
             <td colspan="1"><a class="text-gray-600" href="/Admin/User/{{transaction.borrower_id}}" target="_blank" >{{transaction.borrower_id if transaction.borrower_id is not none}}</a></td>
             <td colspan="2">{{transaction.borrower_price}}</td>
             <td colspan="7">{{transaction.borrower_transaction_status if transaction.borrower_transaction_status is not none}}</td>

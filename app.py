@@ -2182,7 +2182,7 @@ def create_app():
 
                 return redirect(invoice.invoice_url)
             else:
-                return redirect('404.html')
+                return render_template('404.html')
     
         return render_template('404.html')
 
@@ -2200,28 +2200,33 @@ def create_app():
     
         return render_template('404.html')
 
-    @app.route('/Admin/Confirmpayment',methods=['POST'])
+    @app.route('/Admin/Store/Confirmpayment',methods=['POST'])
     @token_required_admin
     def confirmpayment(user):
 
-        invoice_id = request.form.get('invoiceid')
+        invoice_id = request.form.get('invoice_id')
         if invoice_id != None:
             invoice = invoiceModel.query.filter_by(invoice_id = invoice_id).first()
 
             if invoice and invoice!= None:
+                if invoice.invoice_status == invoice_statuses.paid:
+                    return render_template('store-confirmpayment.html',status = True, error = "This Invoice is already paid!", invoice_id= invoice.invoice_id)
+                else:
+                    invoice.invoice_status = invoice_statuses.paid
+                    invoice.payment_date = datetime.utcnow()
+                    invoice.confirmed_usernumber = user.usernumber
+                    invoice.update()
 
-                invoice.invoice_status = invoice_statuses.paid
-                invoice.payment_date = datetime.utcnow()
-                invoice.confirmed_usernumber = user.usernumber
-                invoice.update()
+                    transactions = transactionModel.query.filter(transactionModel.invoice_id == invoice.invoice_id).all()
+                    for transac in transactions:
+                        transac.store_transaction_status = store_transaction_statuses.payment_collected
+                        transac.update()
+                    return render_template('store-confirmpayment.html',status = True,error = "Payment Confirmed!", invoice_id = invoice.invoice_id)
 
-                transactions = transactionModel.query.filter(transactionModel.invoice_id == invoice.invoice_id).all()
-                for transac in transactions:
-                    transac.store_transaction_status = store_transaction_statuses.payment_collected
-                    transac.update()
-                redirect('/Admin/Invoice/'+str(invoice_id))
+            else:
+                return render_template('store-confirmpayment.html',status = False, error = "No such Invoice ID found!")
 
-        return render_template('404.html')
+        return render_template('store-confirmpayment.html',status = False, error = "Please fill the form correctly!")
 
 
     @app.route('/',methods=['GET'])

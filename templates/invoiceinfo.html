@@ -21,7 +21,7 @@
         </tr>
         <tr>
           <th colspan="2">Invoice url</th>
-          <td colspan="2"><a class="text-gray-600" href="/Admin/Book/{{invoice.invoice_url}}" target="_blank" >{{invoice.invoice_url}}</a></td>
+          <td colspan="2"><a class="text-gray-600" href="{{invoice.invoice_url}}" target="_blank" >Link</a></td>
           
           <!-- Idk what innovice total is , so remove it if its not required here --> 
           <th colspan="2">Invoice Total</th>
@@ -30,7 +30,7 @@
        
         <tr>
           <th colspan="2">Invoice Confirm Usernumber</th>
-          <td colspan="10">{{invoice.confirmed_usernumber}}</td>
+          <td colspan="10"><a class="text-gray-600" href="/Admin/User/{{invoice.confirmed_usernumber}}" target="_blank" >{{invoice.confirmed_usernumber}}</a></td>
         </tr>
         <tr>
           <th colspan="2">Invoice Date</th>
@@ -40,6 +40,10 @@
             <th colspan="2">Invoice Payment Date</th>
             <td colspan="10">{{invoice.payment_date if invoice.payment_date is not none}}</td>
         </tr>
+        <tr>
+          <th colspan="2">Store Id</th>
+          <td colspan="10"><a class="text-gray-600" href="/Admin/Store/{{invoice.store_id}}" target="_blank" >{{ invoice.store_id }}</a></td>
+      </tr>
       </tbody>
   </table>
 
@@ -49,14 +53,14 @@
     <tbody>
         <tr>
             <th>Transaction Id</th>
-            <th>Transaction Status</th>
+            <th>Book Id</th>
             <th>Store Cost</th>
             <th>Date</th>
         </tr> 
         {% for transac in transactions %}
         <tr>
-            <td href="/Admin/Transaction/{{transac.transaction_id}}">{{ transac.transaction_id }}</td>
-            <td>{{ transac.transaction_status }}</td>
+            <td ><a class="text-gray-600" href="/Admin/Transaction/{{transac.transaction_id}}" target="_blank" >{{ transac.transaction_id }}</a></td>
+            <td><a class="text-gray-600" href="/Admin/Transaction/{{transac.book_id}}" target="_blank" >{{ transac.book_id }}</a></td>
             <td>{{ transac.store_cost }}</td>
             <td>{{ transac.transaction_lenderpickup_ts }}</td>
         </tr> 
