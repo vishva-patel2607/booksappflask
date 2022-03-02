@@ -1,0 +1,109 @@
+{% include 'admin-layout.html' %}
+
+{% if invoice and invoice != none %}
+<div class="container-fluid">
+
+
+  <div class="d-sm-flex align-items-center justify-content-between mb-4">
+      <h1 class="h3 mb-0 text-gray-800">Invoice Info</h1>
+    </div> 
+
+<!-- Basic Card Example -->
+<div class="card shadow mb-4 m-5">
+  <div class="card-body p-5">
+    <table class="table table-bordered " width="100%" cellspacing="2">
+      <tbody>
+        <tr>
+          <th colspan="2">Invoice Id</th>
+          <td colspan="2"><a class="text-gray-600" href="/Admin/Invoice/{{invoice.invoice_id}}" target="_blank" >{{invoice.invoice_id}}</a></td>
+          <th colspan="2">Invoice Status</th>
+          <td colspan="6">{{invoice.invoice_status if invoice.invoice_status is not none}}</td> 
+        </tr>
+        <tr>
+          <th colspan="2">Invoice url</th>
+          <td colspan="2"><a class="text-gray-600" href="/Admin/Book/{{invoice.invoice_url}}" target="_blank" >{{invoice.invoice_url}}</a></td>
+          
+          <!-- Idk what innovice total is , so remove it if its not required here --> 
+          <th colspan="2">Invoice Total</th>
+          <td colspan="6">{{invoice.invoice_total}}</td> 
+        </tr>
+       
+        <tr>
+          <th colspan="2">Invoice Confirm Usernumber</th>
+          <td colspan="10">{{invoice.confirmed_usernumber}}</td>
+        </tr>
+        <tr>
+          <th colspan="2">Invoice Date</th>
+          <td colspan="10">{{invoice.invoice_date if invoice.invoice_date is not none}}</td>
+        </tr>
+        <tr>
+            <th colspan="2">Invoice Payment Date</th>
+            <td colspan="10">{{invoice.payment_date if invoice.payment_date is not none}}</td>
+        </tr>
+      </tbody>
+  </table>
+
+    <h1>Transactions Involved Info</h1>
+
+  <table class="table table-bordered " width="100%" cellspacing="2">
+    <tbody>
+        <tr>
+            <th>Transaction Id</th>
+            <th>Transaction Status</th>
+            <th>Store Cost</th>
+            <th>Date</th>
+        </tr> 
+        {% for transac in transactions %}
+        <tr>
+            <td href="/Admin/Transaction/{{transac.transaction_id}}">{{ transac.transaction_id }}</td>
+            <td>{{ transac.transaction_status }}</td>
+            <td>{{ transac.store_cost }}</td>
+            <td>{{ transac.transaction_lenderpickup_ts }}</td>
+        </tr> 
+        {% endfor %}
+    </tbody>
+</table>
+  </div>
+</div>
+
+
+
+</div>
+{% endif %}
+
+
+</div>
+<!-- Footer -->
+<footer class="sticky-footer bg-white">
+  <div class="container my-auto">
+    <div class="copyright text-center my-auto">
+      <span>Copyright &copy; Booksapp 2022</span>
+    </div>
+  </div>
+</footer>
+<!-- End of Footer -->
+
+</div>
+<!-- End of Content Wrapper -->
+
+</div>
+<!-- End of Page Wrapper -->
+
+<!-- Scroll to Top Button-->
+<a class="scroll-to-top rounded" href="#page-top">
+<i class="fas fa-angle-up"></i>
+</a>
+
+<!-- Bootstrap core JavaScript-->
+<script src="/static/vendor/jquery/jquery.min.js"></script>
+<script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+<!-- Core plugin JavaScript-->
+<script src="/static/vendor/jquery-easing/jquery.easing.min.js"></script>
+
+<!-- Custom scripts for all pages-->
+<script src="/static/js/sb-admin-2.min.js"></script>
+
+</body>
+
+</html>
