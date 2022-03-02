@@ -1,0 +1,88 @@
+{% include 'admin-layout.html' %}
+
+
+
+<div class="container">
+ <div class="card o-hidden border-0 shadow-lg my-5">
+  <div class="card-body p-0">
+    <!-- Nested Row within Card Body -->
+    <div class="row">
+      
+      <div class="col-lg-12">
+        <div class="p-5">
+          <div class="text-center">
+            <h1 class="h4 text-gray-900 mb-4">Confirm payment</h1>
+          </div>
+          <form action = "/Admin/Store/Confirmpayment" class="user" method="POST">
+            <div class="form-group row">
+                <div class="col-sm-8 mb-3 mb-sm-0">
+                    <input type="text" class="form-control form-control-user" id="invoice_id" name="invoice_id" placeholder="Invoice ID" >
+                    <div id="uname_response" ></div>
+                </div>
+                <button id="button" type="submit" class="col-sm-4 mb-3 mb-sm-0 btn btn-primary btn-user btn-block">
+                  Go
+                </button>
+            </div>
+            
+            
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if status != None and status == False %}
+    <div class="card shadow-lg my-5 bg-warning rounded-5">
+        <h1 class="h3 text-gray-100 mx-auto my-auto p-2">{{error}}</h1>
+    </div>
+    {% elif status != None and status %}
+    <div class="card shadow-lg my-5 bg-success rounded-5">
+        <h1 class="h3 text-gray-100 mx-auto my-auto p-2">{{error}} <a href="/Admin/Invoice/{{invoice_id}}" target="_blank">Click Here!</a></h1>
+    </div>
+    {% else %}
+    <div class="card shadow-lg my-5 bg-info rounded-5">
+        <h1 class="h3 text-gray-100 mx-auto my-auto p-2">Enter the information carefully!</h1>
+    </div>
+    {% endif %}
+
+</div>
+
+
+
+
+</div>
+<!-- Footer -->
+<footer class="sticky-footer bg-white">
+  <div class="container my-auto">
+    <div class="copyright text-center my-auto">
+      <span>Copyright &copy; Booksapp 2022</span>
+    </div>
+  </div>
+</footer>
+<!-- End of Footer -->
+
+</div>
+<!-- End of Content Wrapper -->
+
+</div>
+<!-- End of Page Wrapper -->
+
+<!-- Scroll to Top Button-->
+<a class="scroll-to-top rounded" href="#page-top">
+<i class="fas fa-angle-up"></i>
+</a>
+
+<!-- Bootstrap core JavaScript-->
+<script src="/static/vendor/jquery/jquery.min.js"></script>
+<script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+<!-- Core plugin JavaScript-->
+<script src="/static/vendor/jquery-easing/jquery.easing.min.js"></script>
+
+<!-- Custom scripts for all pages-->
+<script src="/static/js/sb-admin-2.min.js"></script>
+
+</body>
+
+</html>
