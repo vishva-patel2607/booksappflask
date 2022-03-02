@@ -2153,7 +2153,7 @@ def create_app():
             store = storeModel.query.filter_by(store_id = store_id).first()
             pending_transactions = transactionModel.query.\
                                     filter(transactionModel.store_id == store_id).\
-                                    filter(transactionModel.store_transaction_status == store_transaction_statuses.removed_by_lender).\
+                                    filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
                                     order_by(transactionModel.transaction_upload_ts.desc()).\
                                     all()
                                     
