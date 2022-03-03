@@ -36,7 +36,7 @@ class lender_transaction_statuses:
         pending = "Pending"
         removed_by_lender = "Removed by lender, Transaction finished"
         pickup_by_lender = "Received their share, Transaction finished"
-    class buy:
+    class sell:
         pending = "Pending"
         removed_by_seller = "Removed by seller, Transaction finished"
         collected_by_seller = "Received their share, Transaction finished"
