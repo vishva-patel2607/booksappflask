@@ -324,9 +324,10 @@ class transactionModel(db.Model):
     transaction_pickup_ts = db.Column(db.DateTime)
     transaction_return_ts = db.Column(db.DateTime)
     transaction_lenderpickup_ts = db.Column(db.DateTime)
+    #transaction_type = db.Column(db.Text)
 
 
-    def __init__(self, book_id, transaction_status,lender_id , store_id, borrower_id, invoice_id, lender_transaction_status, store_transaction_status, borrower_transaction_status, book_price, transaction_upload_ts, transaction_submit_ts, transaction_pickup_ts, transaction_return_ts, transaction_lenderpickup_ts): 
+    def __init__(self, book_id, transaction_status,lender_id , store_id, borrower_id, invoice_id, lender_transaction_status, store_transaction_status, borrower_transaction_status, book_price, transaction_upload_ts, transaction_submit_ts, transaction_pickup_ts, transaction_return_ts, transaction_lenderpickup_ts, transaction_type): 
         self.book_id  = book_id
         self.transaction_status = transaction_status
         self.lender_id = lender_id
@@ -342,6 +343,7 @@ class transactionModel(db.Model):
         self.transaction_pickup_ts = transaction_pickup_ts
         self.transaction_return_ts = transaction_return_ts
         self.transaction_lenderpickup_ts = transaction_lenderpickup_ts
+        #self.transaction_type = transaction_type
         self.setpricing()
 
 
@@ -367,7 +369,7 @@ class transactionModel(db.Model):
             "transaction_pickup_ts" : self.transaction_pickup_ts,
             "transaction_return_ts" : self.transaction_return_ts,
             "transaction_lenderpickup_ts" : self.transaction_lenderpickup_ts,
-
+            #"transaction_type" : self.transaction_type,
         }
 
     def insert(self):

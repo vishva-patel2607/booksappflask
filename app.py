@@ -21,11 +21,10 @@ from datetime import datetime, timedelta,date
 from s3_functions import upload_file,remove_file
 from werkzeug.utils import secure_filename
 import boto3
-from status import invoice_statuses, transaction_statuses,lender_transaction_statuses,store_transaction_statuses,borrower_transaction_statuses
+from status import invoice_statuses, transaction_statuses,lender_transaction_statuses,store_transaction_statuses,borrower_transaction_statuses, Usertype, Transactiontype
 from geoalchemy2.types import Geometry
 from geoalchemy2.comparator import Comparator
 import geoalchemy2.functions as func
-import enum
 from jinja2 import TemplateNotFound
 from notification import subscribetonotification,sendsmsmessage
 from config import configure_app
@@ -41,10 +40,6 @@ from redisconnection import conn
 
 
 
-class Usertype (enum.Enum):
-    user = 1
-    store = 2
-    admin = 3
 
 
 def create_app():
@@ -753,7 +748,7 @@ def create_app():
             blist = []
             for book in books:
                 status = transactionModel.query.filter_by(book_id = book.book_id).first()
-                if status.transaction_status == transaction_statuses.submitted_by_lender:
+                if status.transaction_status == transaction_statuses.lend.submitted_by_lender:
                     book_dict = book.details()
                     store = storeModel.query.filter_by(store_id = book.store_id).first()
                     book_dict['store_distance'] = store.getdistance(longitude,latitude)
@@ -853,14 +848,14 @@ def create_app():
 
         transaction = transactionModel(
             book_id= book.book_id,
-            transaction_status= transaction_statuses.uploaded_with_lender,
+            transaction_status= transaction_statuses.lend.uploaded_with_lender,
             lender_id= usernumber,
             store_id= store_id,
             borrower_id= None,
             invoice_id = None,
-            lender_transaction_status= lender_transaction_statuses.pending,
-            store_transaction_status= store_transaction_statuses.pending,
-            borrower_transaction_status = borrower_transaction_statuses.pending,
+            lender_transaction_status= lender_transaction_statuses.lend.pending,
+            store_transaction_status= store_transaction_statuses.lend.pending,
+            borrower_transaction_status = borrower_transaction_statuses.lend.pending,
             book_price= book_price,
             transaction_upload_ts= datetime.now(),
             transaction_submit_ts= None,
@@ -899,7 +894,7 @@ def create_app():
 
         for book in books:
             status = transactionModel.query.filter_by(book_id = book.book_id).first()
-            if status.transaction_status != transaction_statuses.pickup_by_lender:
+            if status.transaction_status != transaction_statuses.lend.pickup_by_lender:
                 book_dict = book.details()
                 book_dict['book_status'] = status.transaction_status
                 book_dict['book_transaction_code'] = status.getcodes()
@@ -971,20 +966,20 @@ def create_app():
 
         transaction = transactionModel.query.filter_by(book_id = book_id).first()
 
-        if transaction.transaction_status == transaction_statuses.uploaded_with_lender:
-            transaction.transaction_status = transaction_statuses.pickup_by_lender
+        if transaction.transaction_status == transaction_statuses.lend.uploaded_with_lender:
+            transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
             transaction.transaction_lenderpickup_ts = datetime.utcnow()
-            transaction.lender_transaction_status = lender_transaction_statuses.removed_by_lender
-            transaction.store_transaction_status = store_transaction_statuses.removed_by_lender
+            transaction.lender_transaction_status = lender_transaction_statuses.lend.removed_by_lender
+            transaction.store_transaction_status = store_transaction_statuses.lend.removed_by_lender
             transaction.update()
             ret["message"] = "Book removed from uploads!"
             ret["status"] = True
             
-        elif transaction.transaction_status == transaction_statuses.submitted_by_lender:
-            transaction.transaction_status = transaction_statuses.removed_by_lender
+        elif transaction.transaction_status == transaction_statuses.lend.submitted_by_lender:
+            transaction.transaction_status = transaction_statuses.lend.removed_by_lender
             transaction.transaction_return_ts = datetime.utcnow()
-            transaction.lender_transaction_status = lender_transaction_statuses.removed_by_lender
-            transaction.store_transaction_status = store_transaction_statuses.removed_by_lender
+            transaction.lender_transaction_status = lender_transaction_statuses.lend.removed_by_lender
+            transaction.store_transaction_status = store_transaction_statuses.lend.removed_by_lender
             transaction.update()
             ret["message"] = "Book will be removed once collected from shop!"
             ret["status"] = True
@@ -1002,7 +997,7 @@ def create_app():
         transactions = transactionModel.\
                         query.\
                         filter(transactionModel.borrower_id == current_user.usernumber).\
-                        filter(transactionModel.transaction_status == transaction_statuses.borrowed_by_borrower).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.borrowed_by_borrower).\
                         all()
         
 
@@ -1039,7 +1034,7 @@ def create_app():
         transactions = transactionModel.\
                         query.\
                         filter(transactionModel.borrower_id == current_user.usernumber).\
-                        filter(transactionModel.transaction_status == transaction_statuses.pickup_by_borrower).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.pickup_by_borrower).\
                         all()
         
 
@@ -1075,7 +1070,7 @@ def create_app():
         transactions = transactionModel.\
                         query.\
                         filter(transactionModel.borrower_id == current_user.usernumber).\
-                        filter(transactionModel.transaction_status == transaction_statuses.return_by_borrower).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower).\
                         all()
         
 
@@ -1120,11 +1115,11 @@ def create_app():
 
        
         if transaction: 
-            if transaction.transaction_status == transaction_statuses.borrowed_by_borrower :
-                transaction.transaction_status = transaction_statuses.return_by_borrower
+            if transaction.transaction_status == transaction_statuses.lend.borrowed_by_borrower :
+                transaction.transaction_status = transaction_statuses.lend.return_by_borrower
                 transaction.update()
-            elif transaction.transaction_status == transaction_statuses.pickup_by_borrower :
-                transaction.transaction_status = transaction_statuses.submitted_by_lender
+            elif transaction.transaction_status == transaction_statuses.lend.pickup_by_borrower :
+                transaction.transaction_status = transaction_statuses.lend.submitted_by_lender
                 transaction.borrower_id = None
                 transaction.update() 
             return make_response(
@@ -1170,9 +1165,9 @@ def create_app():
 
        
         if transaction: 
-            transaction.transaction_status = transaction_statuses.pickup_by_borrower
+            transaction.transaction_status = transaction_statuses.lend.pickup_by_borrower
             transaction.borrower_id = current_user.usernumber
-            transaction.borrower_transaction_status = borrower_transaction_statuses.pending
+            transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pending
             transaction.update()
             return make_response(
                 jsonify(
@@ -1459,7 +1454,7 @@ def create_app():
         pickup_books = transactionModel.\
                         query.\
                         filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.removed_by_lender) ).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.lend.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.removed_by_lender) ).\
                         all()
 
         if not pickup_books: 
@@ -1505,7 +1500,7 @@ def create_app():
         dropoff_books = transactionModel.\
                         query.\
                         filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.return_by_borrower) ).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower) ).\
                         all()
 
         if not dropoff_books: 
@@ -1550,7 +1545,7 @@ def create_app():
         books = transactionModel.\
                 query.\
                 filter(transactionModel.store_id == store_id).\
-                filter( (transactionModel.transaction_status == transaction_statuses.submitted_by_lender) | (transactionModel.transaction_status == transaction_statuses.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.removed_by_lender)).\
+                filter( (transactionModel.transaction_status == transaction_statuses.lend.submitted_by_lender) | (transactionModel.transaction_status == transaction_statuses.lend.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.removed_by_lender)).\
                 all()
 
         if not books: 
@@ -1596,7 +1591,7 @@ def create_app():
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.return_by_borrower) ).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower) ).\
                         first()
         
         
@@ -1627,7 +1622,7 @@ def create_app():
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.return_by_borrower) ).\
+                        filter( (transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower) ).\
                         first()
 
         if not transaction : 
@@ -1641,15 +1636,15 @@ def create_app():
                                 200,
                             )
         else : 
-            if transaction.transaction_status == transaction_statuses.uploaded_with_lender : 
-                transaction.transaction_status = transaction_statuses.submitted_by_lender
+            if transaction.transaction_status == transaction_statuses.lend.uploaded_with_lender : 
+                transaction.transaction_status = transaction_statuses.lend.submitted_by_lender
                 transaction.transaction_submit_ts = datetime.utcnow()
                 transaction.update()
 
-            elif transaction.transaction_status == transaction_statuses.return_by_borrower :
-                transaction.transaction_status = transaction_statuses.submitted_by_borrower
-                transaction.store_transaction_status = store_transaction_statuses.dropoff_by_borrower
-                transaction.borrower_transaction_status = borrower_transaction_statuses.dropoff_by_borrower
+            elif transaction.transaction_status == transaction_statuses.lend.return_by_borrower :
+                transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
+                transaction.store_transaction_status = store_transaction_statuses.lend.dropoff_by_borrower
+                transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
                 transaction.transaction_return_ts = datetime.utcnow()
                 transaction.update()
             
@@ -1722,21 +1717,21 @@ def create_app():
                             )
         else :
             
-            if transaction.transaction_status == transaction_statuses.pickup_by_borrower: 
-                transaction.transaction_status = transaction_statuses.borrowed_by_borrower
-                transaction.borrower_transaction_status = borrower_transaction_statuses.pickup_by_borrower
+            if transaction.transaction_status == transaction_statuses.lend.pickup_by_borrower: 
+                transaction.transaction_status = transaction_statuses.lend.borrowed_by_borrower
+                transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pickup_by_borrower
                 transaction.transaction_pickup_ts = datetime.utcnow()
                 transaction.update()
 
-            elif transaction.transaction_status == transaction_statuses.submitted_by_borrower:
-                transaction.transaction_status = transaction_statuses.pickup_by_lender
-                transaction.lender_transaction_status = lender_transaction_statuses.pickup_by_lender
-                transaction.store_transaction_status = store_transaction_statuses.pickup_by_lender
+            elif transaction.transaction_status == transaction_statuses.lend.submitted_by_borrower:
+                transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
+                transaction.lender_transaction_status = lender_transaction_statuses.lend.pickup_by_lender
+                transaction.store_transaction_status = store_transaction_statuses.lend.pickup_by_lender
                 transaction.transaction_lenderpickup_ts = datetime.utcnow()
                 transaction.update()
 
-            elif transaction.transaction_status == transaction_statuses.removed_by_lender:
-                transaction.transaction_status = transaction_statuses.pickup_by_lender
+            elif transaction.transaction_status == transaction_statuses.lend.removed_by_lender:
+                transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
                 transaction.transaction_lenderpickup_ts = datetime.utcnow()
                 transaction.update()
 
@@ -1766,7 +1761,7 @@ def create_app():
         transactions =   transactionModel.\
                         query.\
                         filter(transactionModel.store_id == store_id).\
-                        filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
+                        filter(transactionModel.store_transaction_status == store_transaction_statuses.lend.pickup_by_lender).\
                         all()
 
         transactionlist = []
@@ -1805,12 +1800,12 @@ def create_app():
         transactions =   transactionModel.\
                         query.\
                         filter(transactionModel.store_id == store_id).\
-                        filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
+                        filter(transactionModel.store_transaction_status == store_transaction_statuses.lend.pickup_by_lender).\
                         all()
 
 
         for transaction in transactions:
-            transaction.store_transaction_status = store_transaction_statuses.payment_collected
+            transaction.store_transaction_status = store_transaction_statuses.lend.payment_collected
             transaction.update()
 
         return make_response( 
@@ -1891,47 +1886,47 @@ def create_app():
 
                 books_lent_previously = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
-                                        filter(transactionModel.transaction_status == transaction_statuses.pickup_by_lender).\
+                                        filter(transactionModel.transaction_status == transaction_statuses.lend.pickup_by_lender).\
                                         order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all()
                 books_lent_currently = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
-                                        filter(transactionModel.transaction_status.notin_([transaction_statuses.uploaded_with_lender,transaction_statuses.removed_by_lender,transaction_statuses.submitted_by_lender,transaction_statuses.submitted_by_borrower,transaction_statuses.pickup_by_lender])).\
+                                        filter(transactionModel.transaction_status.notin_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.removed_by_lender,transaction_statuses.lend.submitted_by_lender,transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.pickup_by_lender])).\
                                         order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all() 
                 books_lent_pickup = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
-                                        filter(transactionModel.transaction_status.in_([transaction_statuses.removed_by_lender,transaction_statuses.submitted_by_borrower])).\
+                                        filter(transactionModel.transaction_status.in_([transaction_statuses.lend.removed_by_lender,transaction_statuses.lend.submitted_by_borrower])).\
                                         order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all() 
 
                 books_lent_dropoff_or_notborrowed = transactionModel.query.\
                                         filter(transactionModel.lender_id == user.usernumber).\
-                                        filter(transactionModel.transaction_status.in_([transaction_statuses.uploaded_with_lender,transaction_statuses.submitted_by_lender])).\
+                                        filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.submitted_by_lender])).\
                                         order_by(transactionModel.transaction_upload_ts.desc()).\
                                         all()
 
                 books_borrowed_previously = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
-                                            filter(transactionModel.transaction_status == transaction_statuses.submitted_by_borrower).\
+                                            filter(transactionModel.transaction_status == transaction_statuses.lend.submitted_by_borrower).\
                                             order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
                 books_borrowed_currently = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
-                                            filter(transactionModel.transaction_status == transaction_statuses.borrowed_by_borrower).\
+                                            filter(transactionModel.transaction_status == transaction_statuses.lend.borrowed_by_borrower).\
                                             order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
                 books_borrowed_pickup = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
-                                            filter(transactionModel.transaction_status == transaction_statuses.pickup_by_borrower).\
+                                            filter(transactionModel.transaction_status == transaction_statuses.lend.pickup_by_borrower).\
                                             order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
                 books_borrowed_dropoff = transactionModel.query.\
                                             filter(transactionModel.borrower_id == user.usernumber).\
-                                            filter(transactionModel.transaction_status == transaction_statuses.return_by_borrower).\
+                                            filter(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower).\
                                             order_by(transactionModel.transaction_upload_ts.desc()).\
                                             all()
 
@@ -1997,25 +1992,25 @@ def create_app():
         if success == True:
             idle_books = transactionModel.query.\
                         filter(transactionModel.store_id == store.store_id).\
-                        filter(transactionModel.transaction_status == transaction_statuses.submitted_by_lender).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.submitted_by_lender).\
                         order_by(transactionModel.transaction_upload_ts.desc()).\
                         all()
                         
             pickup_books = transactionModel.query.\
                         filter(transactionModel.store_id == store.store_id).\
-                        filter(transactionModel.transaction_status.in_([transaction_statuses.pickup_by_borrower,transaction_statuses.submitted_by_borrower,transaction_statuses.removed_by_lender])).\
+                        filter(transactionModel.transaction_status.in_([transaction_statuses.lend.pickup_by_borrower,transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender])).\
                         order_by(transactionModel.transaction_upload_ts.desc()).\
                         all()
 
             dropoff_books = transactionModel.query.\
                         filter(transactionModel.store_id == store.store_id).\
-                        filter(transactionModel.transaction_status.in_([transaction_statuses.uploaded_with_lender,transaction_statuses.return_by_borrower])).\
+                        filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower])).\
                         order_by(transactionModel.transaction_upload_ts.desc()).\
                         all()
 
             past_books = transactionModel.query.\
                         filter(transactionModel.store_id == store.store_id).\
-                        filter(transactionModel.transaction_status == transaction_statuses.pickup_by_lender).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.pickup_by_lender).\
                         order_by(transactionModel.transaction_upload_ts.desc()).\
                         all()
 
@@ -2153,7 +2148,7 @@ def create_app():
             store = storeModel.query.filter_by(store_id = store_id).first()
             pending_transactions = transactionModel.query.\
                                     filter(transactionModel.store_id == store_id).\
-                                    filter(transactionModel.store_transaction_status == store_transaction_statuses.pickup_by_lender).\
+                                    filter(transactionModel.store_transaction_status == store_transaction_statuses.lend.pickup_by_lender).\
                                     order_by(transactionModel.transaction_upload_ts.desc()).\
                                     all()
                                     
@@ -2168,7 +2163,7 @@ def create_app():
                 total = 0
                 for transactions in pending_transactions:
                     total += transactions.store_cost
-                    transactions.store_transaction_status = store_transaction_statuses.transaction_invoiced
+                    transactions.store_transaction_status = store_transaction_statuses.lend.transaction_invoiced
                     transactions.invoice_id = invoice.invoice_id
                     transactions.update()
 
@@ -2219,7 +2214,7 @@ def create_app():
 
                     transactions = transactionModel.query.filter(transactionModel.invoice_id == invoice.invoice_id).all()
                     for transac in transactions:
-                        transac.store_transaction_status = store_transaction_statuses.payment_collected
+                        transac.store_transaction_status = store_transaction_statuses.lend.payment_collected
                         transac.update()
                     return render_template('store-confirmpayment.html',status = True,error = "Payment Confirmed!", invoice_id = invoice.invoice_id)
 
