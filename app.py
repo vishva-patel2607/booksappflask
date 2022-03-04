@@ -105,6 +105,48 @@ def create_app():
         
         return decorated
 
+    def token_required_store(f):
+        @wraps(f)
+
+        def decorated(*args, **kwargs):
+
+            token = None
+            if 'x-access-token' in request.headers:
+                token = request.headers['x-access-token']
+            if not token:
+                return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Could not verify",
+                            "status" : False,
+                        }
+                    ),
+                    401
+                )
+
+            try:
+                data = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"])
+                current_user = userModel.query.filter(userModel.usernumber == data['usernumber']).filter(userModel.usertype == Usertype.store.name).first()
+                assert(current_user is not None)
+                current_store = storeModel.query.filter(storeModel.usernumber == current_user.usernumber).first()
+                assert(current_store is not None)
+                
+            except:
+                return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Could not verify",
+                            "status" : False,
+                        }
+                    ),
+                    401
+                )
+
+        
+            return f(current_user,current_store,*args,**kwargs)
+        
+        return decorated
+
 
     def token_required_admin(f):
         @wraps(f)
@@ -714,7 +756,7 @@ def create_app():
             )
 
     @app.route('/Book/Search', methods = ['POST'])
-    @token_required
+    #@token_required
     def searchbooks(current_user):
 
         data = request.get_json()
@@ -722,7 +764,7 @@ def create_app():
         book_query = data.get("book_query")
         longitude = data.get("longitude")
         latitude = data.get("latitude")
-        distance_filter =  data.get("distance_filter")
+        #distance_filter =  data.get("distance_filter")
         price_filter = data.get("price_filter")
         genre_filter = data.get("genre_filter")
 
@@ -731,7 +773,7 @@ def create_app():
 
         result = db.session.query(bookModel,transactionModel,storeModel).\
                             filter(bookModel.usernumber != current_user.usernumber).\
-                            filter((transactionModel.transaction_status == transaction_statuses.lend.submitted_by_lender) | (transactionModel.transaction_status == transaction_statuses.sell.submitted_by_seller) ).\
+                            filter((transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.sell.submitted_by_seller) ).\
                             filter(bookModel.store_id == storeModel.store_id).\
                             filter(bookModel.book_id == transactionModel.book_id).\
                             filter(bookModel.book_name.ilike(query_string))
@@ -745,7 +787,7 @@ def create_app():
         elif price_filter == 4:
             result = result.filter(bookModel.book_price >= 750)
 
-        if genre_filter != "" or genre_filter is not None:
+        if genre_filter != "" and genre_filter is not None:
             result =  result.filter(bookModel.book_category == genre_filter.lower())
         
         result = result.all()
@@ -757,7 +799,7 @@ def create_app():
             book_dict['transaction_type'] = transaction.transaction_type
             retlist.append(book_dict)
 
-
+        booklist = sorted(retlist, key=lambda k:k['store_distance'])
 
         return make_response(
                 jsonify(
@@ -765,7 +807,7 @@ def create_app():
                             "message" : "All the Books for given query",
                             "status" : True,
                             "response" : {
-                                "book_list" : retlist,
+                                "book_list" : booklist,
                             }
                 }
                 ),
@@ -892,6 +934,11 @@ def create_app():
 
 
     ######################################### HOME PAGE ################################################
+
+
+    ##################################################################################
+    # TO GET ALL THE BOOKS THAT USER HAS LENT CURRENTLY
+    ##################################################################################
     @app.route('/Book/Uploadedbooks',methods=['POST'])              #delete once done
     @app.route('/Book/Lent', methods=['GET'])
     @token_required
@@ -907,29 +954,42 @@ def create_app():
                     filter(transactionModel.transaction_status != transaction_statuses.lend.pickup_by_lender).\
                     all()
 
-        for book,transaction,store in result:
-            book_dict = book.details()
-            book_dict['book_status'] = transaction.transaction_status
-            book_dict['book_transaction_code'] = transaction.getcodes()
-            book_dict['store'] = store.details()
-            booklist.append(book_dict)
+        if result is not None:
+            for book,transaction,store in result:
+                book_dict = book.details()
+                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['store'] = store.details()
+                booklist.append(book_dict)
 
-        
+            
 
-        return make_response(
-            jsonify(
-                {
-                            "message" : "All the books for the user retrieved",
-                            "status" : True,
-                            "response" : {
-                                "books" : booklist
-                            }
-                }
-            ),
-            200
-        )
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the books for the user retrieved",
+                                "status" : True,
+                                "response" : {
+                                    "books" : booklist
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "No books lent yet",
+                                "status" : False,
+                    }
+                ),
+                200
+            )
 
-
+    ##################################################################################
+    # TO GET ALL THE BOOKS THAT USER HAS SOLD CURRENTLY
+    ##################################################################################
     @app.route('/Book/Sold', methods=['GET'])
     @token_required
     def soldbooks(current_user):
@@ -944,27 +1004,39 @@ def create_app():
                     filter((transactionModel.transaction_status != transaction_statuses.sell.collected_by_seller)|(transactionModel.transaction_status != transaction_statuses.sell.pickup_by_seller)).\
                     all()
 
-        for book,transaction,store in result:
-            book_dict = book.details()
-            book_dict['book_status'] = transaction.transaction_status
-            book_dict['book_transaction_code'] = transaction.getcodes()
-            book_dict['store'] = store.details()
-            booklist.append(book_dict)
+        if result is not None:
+            for book,transaction,store in result:
+                book_dict = book.details()
+                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['store'] = store.details()
+                booklist.append(book_dict)
 
+            
+
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the books user has sold yet",
+                                "status" : True,
+                                "response" : {
+                                    "books" : booklist
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "No books sold yet",
+                                "status" : False,
+                    }
+                ),
+                200
+            )
         
-
-        return make_response(
-            jsonify(
-                {
-                            "message" : "All the books for the user retrieved",
-                            "status" : True,
-                            "response" : {
-                                "books" : booklist
-                            }
-                }
-            ),
-            200
-        )
 
 
     @app.route('/Book/Uploadedbooks/Edit',methods=['PUT'])
@@ -1002,7 +1074,312 @@ def create_app():
             201
         )
 
+    
+            
+            
+    
 
+    ##################################################################################
+    # TO GET ALL THE BOOKS USER HAS BORROWED CURRENTLY
+    ##################################################################################
+    @app.route('/Book/Pickedupbooks',methods=['POST'])
+    @app.route('/Book/Borrowed',methods=['GET'])
+    @token_required
+    def pickedupbooks(current_user):
+
+
+        booklist = [] 
+
+        result =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter(transactionModel.borrower_id == current_user.usernumber).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_type == Transactiontype.lend.name).\
+                    filter((transactionModel.transaction_status == transaction_statuses.lend.borrowed_by_borrower)|(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower)).\
+                    all()
+        if result is not None:
+            for book,transaction,store in result:
+                book_dict = book.details()
+                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
+                book_dict['store'] = store.details()
+                booklist.append(book_dict)
+
+        
+
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the books for the user has Borrowed",
+                                "status" : True,
+                                "response" : {
+                                    "books" : booklist
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "No books borrowed yet",
+                                "status" : False,
+                    }
+                ),
+                200
+            )
+
+
+        
+
+    ##################################################################################
+    # TO GET ALL THE BOOKS USER HAS BOUGHT CURRENTLY
+    ##################################################################################
+    @app.route('/Book/Bought',methods=['GET'])
+    @token_required
+    def boughtbooks(current_user):
+
+
+        booklist = [] 
+
+        result =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter(transactionModel.borrower_id == current_user.usernumber).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_type == Transactiontype.sell.name).\
+                    filter(transactionModel.transaction_status == transaction_statuses.sell.booked_by_buyer).\
+                    all()
+
+        if result is not None:
+            for book,transaction,store in result:
+                book_dict = book.details()
+                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
+                book_dict['store'] = store.details()
+                booklist.append(book_dict)
+
+            
+
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the books for the user has bought",
+                                "status" : True,
+                                "response" : {
+                                    "books" : booklist
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "No books bought yet",
+                                "status" : False,
+                    }
+                ),
+                200
+            )
+        
+
+    ##################################################################################
+    # TO GET ALL THE BOOK PICKUPS FOR THE USER
+    ##################################################################################
+    @app.route('/Book/Pickedupbooks/Added',methods=['POST'])
+    @app.route('/Book/Pickups',methods=['GET'])
+    @token_required
+    def pickups(current_user):
+
+        booklist = [] 
+
+        result1 =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter(transactionModel.borrower_id == current_user.usernumber).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.pickup_by_borrower,transaction_statuses.sell.booked_by_buyer])).\
+                    all()
+
+        result2 =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter(transactionModel.lender_id == current_user.usernumber).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller])).\
+                    all()
+        
+        if result1 is not None or result2 is not None:
+            if result1 is None:
+                result = result2
+            elif result2 is None:
+                result = result1
+            else:
+                result = result1+result2
+
+            for book,transaction,store in result:
+                book_dict = book.details()
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_transaction_type'] = transaction.transaction_type
+                book_dict['book_transaction_status'] = transaction.transaction_status
+                book_dict['store'] = store.details()
+
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the books for the user has added to pick up",
+                                "status" : True,
+                                "response" : {
+                                    "books" : booklist
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "No pickups currently",
+                                "status" : False,
+                    }
+                ),
+                200
+            )
+
+
+    ##################################################################################
+    # TO GET ALL THE BOOK DROPOFFS FOR THE USER
+    ##################################################################################
+    @app.route('/Book/Pickedupbooks/Removed',methods=['POST'])
+    @app.route('/Book/Dropoffs',methods=['GET'])
+    @token_required
+    def dropoffs(current_user):
+
+        booklist = [] 
+
+        result1 =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter(transactionModel.lender_id == current_user.usernumber).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.sell.uploaded_with_seller])).\
+                    all()
+
+        result2 =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter(transactionModel.borrower_id == current_user.usernumber).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower).\
+                    all()
+
+        if result1 is not None or result2 is not None:
+            if result1 is None:
+                result = result2
+            elif result2 is None:
+                result = result1
+            else:
+                result = result2+result1
+        
+            for book,transaction,store in result:
+                book_dict = book.details()
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_transaction_type'] = transaction.transaction_type
+                book_dict['book_transaction_status'] = transaction.transaction_status
+                book_dict['store'] = store.details()
+
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the books for the user to drop off",
+                                "status" : True,
+                                "response" : {
+                                    "books" : booklist
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "No pickups currently",
+                                "status" : False,
+                    }
+                ),
+                200
+            )
+
+
+
+
+    ##################################################################################
+    # TO GET ALL THE PREVIOUS TRANSACTION
+    ##################################################################################
+    @app.route('/Book/Previoustransactions',methods=['GET'])
+    @token_required
+    def previoustransactions(current_user):
+
+        booklist = [] 
+
+        result1 =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter((transactionModel.borrower_id == current_user.usernumber)).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_borrower,transaction_statuses.sell.pickup_by_buyer])).\
+                    all()
+
+        result2 =  db.session.query(bookModel,transactionModel,storeModel).\
+                    filter((transactionModel.lender_id == current_user.usernumber)).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(bookModel.store_id == storeModel.store_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.pickup_by_lender,transaction_statuses.sell.collected_by_seller,transaction_statuses.sell.pickup_by_seller])).\
+                    all()
+
+        if result1 is not None or result2 is not None:
+            if result1 is None:
+                result = result2
+            elif result2 is None:
+                result = result1
+            else:
+                result = result1+result2
+            for book,transaction,store in result:
+                book_dict = book.details()
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_transaction_type'] = transaction.transaction_type
+                book_dict['book_transaction_status'] = transaction.transaction_status
+                book_dict['store'] = store.details()
+
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the previous transactions",
+                                "status" : True,
+                                "response" : {
+                                    "books" : booklist
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "No previous transactions",
+                                "status" : False,
+                    }
+                ),
+                200
+            )
+
+
+
+    ##################################################################################
+    # TO DELETE OR REMOVE BOOKS UPLOADED FOR LENDING AND SELLING CURRENTLY
+    ##################################################################################
     @app.route('/Book/Uploadedbooks/Remove',methods=['DELETE'])
     @app.route('/Book/Lent/Remove', methods=['DELETE'])
     @app.route('/Book/Sold/Remove', methods=['DELETE'])
@@ -1090,165 +1467,15 @@ def create_app():
                         }),
                         201
                     )
-            
-            
-    
 
-
-    @app.route('/Book/Pickedupbooks',methods=['POST'])
-    @app.route('/Book/Borrowed',methods=['GET'])
-    @token_required
-    def pickedupbooks(current_user):
-
-
-        booklist = [] 
-
-        result =  db.session.query(bookModel,transactionModel,storeModel).\
-                    filter(transactionModel.borrower_id == current_user.usernumber).\
-                    filter(transactionModel.book_id == bookModel.book_id).\
-                    filter(bookModel.store_id == storeModel.store_id).\
-                    filter(transactionModel.transaction_type == Transactiontype.lend.name).\
-                    filter(transactionModel.transaction_status == transaction_statuses.lend.borrowed_by_borrower).\
-                    all()
-
-        for book,transaction,store in result:
-            book_dict = book.details()
-            book_dict['book_status'] = transaction.transaction_status
-            book_dict['book_transaction_code'] = transaction.getcodes()
-            book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
-            book_dict['store'] = store.details()
-            booklist.append(book_dict)
-
-        
-
-        return make_response(
-            jsonify(
-                {
-                            "message" : "All the books for the user has picked up",
-                            "status" : True,
-                            "response" : {
-                                "books" : booklist
-                            }
-                }
-            ),
-            200
-        )
-
-
-    @app.route('/Book/Bought',methods=['GET'])
-    @token_required
-    def boughtbooks(current_user):
-
-
-        booklist = [] 
-
-        result =  db.session.query(bookModel,transactionModel,storeModel).\
-                    filter(transactionModel.borrower_id == current_user.usernumber).\
-                    filter(transactionModel.book_id == bookModel.book_id).\
-                    filter(bookModel.store_id == storeModel.store_id).\
-                    filter(transactionModel.transaction_type == Transactiontype.sell.name).\
-                    filter(transactionModel.transaction_status == transaction_statuses.sell.pickup_by_buyer).\
-                    all()
-
-        for book,transaction,store in result:
-            book_dict = book.details()
-            book_dict['book_status'] = transaction.transaction_status
-            book_dict['book_transaction_code'] = transaction.getcodes()
-            book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
-            book_dict['store'] = store.details()
-            booklist.append(book_dict)
-
-        
-
-        return make_response(
-            jsonify(
-                {
-                            "message" : "All the books for the user has picked up",
-                            "status" : True,
-                            "response" : {
-                                "books" : booklist
-                            }
-                }
-            ),
-            200
-        )
-
-    @app.route('/Book/Pickedupbooks/Added',methods=['POST'])
-    @token_required
-    def addedpickedupbooks(current_user):
-
-        transactions = transactionModel.\
-                        query.\
-                        filter(transactionModel.borrower_id == current_user.usernumber).\
-                        filter(transactionModel.transaction_status == transaction_statuses.lend.pickup_by_borrower).\
-                        all()
-        
-
-        booklist = [] 
-
-        for transaction in transactions:
-            book = bookModel.query.filter(bookModel.book_id == transaction.book_id).first()
-            store = storeModel.query.filter(storeModel.store_id == transaction.store_id).first()
-            book_dict = book.details()
-            book_dict['book_transaction_code'] = transaction.getcodes()
-            book_dict['store'] = store.details()
-            booklist.append(book_dict)
-
-        
-
-        return make_response(
-            jsonify(
-                {
-                            "message" : "All the books for the user has added to pick up",
-                            "status" : True,
-                            "response" : {
-                                "books" : booklist
-                            }
-                }
-            ),
-            200
-        )
-
-    @app.route('/Book/Pickedupbooks/Removed',methods=['POST'])
-    @token_required
-    def removedpickedupbooks(current_user):
-
-        transactions = transactionModel.\
-                        query.\
-                        filter(transactionModel.borrower_id == current_user.usernumber).\
-                        filter(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower).\
-                        all()
-        
-
-        booklist = [] 
-
-        for transaction in transactions:
-            book = bookModel.query.filter(bookModel.book_id == transaction.book_id).first()
-            store = storeModel.query.filter(storeModel.store_id == transaction.store_id).first()
-            book_dict = book.details()
-            book_dict['book_transaction_code'] = transaction.getcodes()
-            book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
-            book_dict['store'] = store.details()
-            booklist.append(book_dict)
-
-        
-
-        return make_response(
-            jsonify(
-                {
-                            "message" : "All the books for the user has removed from pick up",
-                            "status" : True,
-                            "response" : {
-                                "books" : booklist
-                            }
-                }
-            ),
-            200
-        )
-
+    ##################################################################################
+    # TO DELETE OR REMOVE BOOKS BORROWED AND BOOKED FOR BUYING CURRENTLY
+    ##################################################################################
     @app.route('/Book/Pickedupbooks/Remove',methods=['POST'])
+    @app.route('/Book/Borrowed/Remove', methods = ['DELETE'])
+    @app.route('/Book/Bought/Remove', methods=['DELETE'])
     @token_required
-    def removepickedupbooks(current_user):
+    def removeborrowedandbought(current_user):
 
         data = request.get_json()
         book_id = data.get('book_id')
@@ -1261,25 +1488,83 @@ def create_app():
 
        
         if transaction: 
-            if transaction.transaction_status == transaction_statuses.lend.borrowed_by_borrower :
-                transaction.transaction_status = transaction_statuses.lend.return_by_borrower
-                transaction.update()
-            elif transaction.transaction_status == transaction_statuses.lend.pickup_by_borrower :
-                transaction.transaction_status = transaction_statuses.lend.submitted_by_lender
-                transaction.borrower_id = None
-                transaction.update() 
-            return make_response(
-                jsonify(
-                    {
-                                "message" : "Pickup removed",
-                                "status" : True,
-                                "response" : {
-                                    "transaction" : transaction.details()
-                                }
-                    }
-                ),
-                202
-            )
+
+            if transaction.transation_type == Transactiontype.lend.name:
+                if transaction.transaction_status == transaction_statuses.lend.borrowed_by_borrower :
+                    transaction.transaction_status = transaction_statuses.lend.return_by_borrower
+                    transaction.update()
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Borrowed book removed please submit to shop!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+                elif transaction.transaction_status == transaction_statuses.lend.pickup_by_borrower :
+                    transaction.transaction_status = transaction_statuses.lend.submitted_by_lender
+                    transaction.borrower_id = None
+                    transaction.update() 
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Borrowed book removed from your pickups!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+                else:
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book cannot be removed!",
+                                        "status" : False,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+            else:
+                if transaction.transaction_status == transaction_statuses.sell.booked_by_buyer :
+                    transaction.transaction_status = transaction_statuses.sell.submitted_by_seller
+                    transaction.borrower_id = None
+                    transaction.update() 
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Borrowed book removed from your pickups!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+                else:
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book cannot be removed!",
+                                        "status" : False,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+                
 
         else :
             return make_response(
@@ -1295,8 +1580,12 @@ def create_app():
                 406
             )
 
-
+    ##################################################################################
+    # TO ADD BOOKS AS BORROWED AND BOUGHT
+    ##################################################################################
     @app.route('/Book/Pickedupbooks/Add',methods=['POST'])
+    @app.route('/Book/Borrowed/Add',methods=['PUT'])
+    @app.route('/Book/Bought/Add',methods=['PUT'])
     @token_required
     def addpickedupbooks(current_user):
 
@@ -1310,23 +1599,69 @@ def create_app():
         
 
        
-        if transaction: 
-            transaction.transaction_status = transaction_statuses.lend.pickup_by_borrower
-            transaction.borrower_id = current_user.usernumber
-            transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pending
-            transaction.update()
-            return make_response(
-                jsonify(
-                    {
-                                "message" : "Pickup added",
-                                "status" : True,
-                                "response" : {
-                                    "transaction" : transaction.details()
-                                }
-                    }
-                ),
-                202
-            )
+        if transaction:
+            if transaction.transaction_type == Transactiontype.lend.name: 
+                if transaction.transaction_status == transaction_statuses.lend.submitted_by_lender:
+                    transaction.transaction_status = transaction_statuses.lend.pickup_by_borrower
+                    transaction.borrower_id = current_user.usernumber
+                    transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pending
+                    transaction.update()
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book added to pickup please collect it from shop!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+                else:
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book can't be added to pickup",
+                                        "status" : False,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+            else:
+                if transaction.transaction_status == transaction_statuses.sell.submitted_by_seller:
+                    transaction.transaction_status = transaction_statuses.sell.booked_by_buyer
+                    transaction.borrower_id = current_user.usernumber
+                    transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pending
+                    transaction.update()
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book added to pickup please collect it from shop!",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+                else:
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book can't be added to pickup",
+                                        "status" : False,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
 
         else :
             return make_response(
@@ -1378,14 +1713,10 @@ def create_app():
 
 
 
-    @app.route('/Store/User', methods=['POST'])
-    @token_required
-    def returnusers(current_user):
-        data = request.get_json()
-
-        store_id = data.get('store_id')
-
-        store = storeModel.query.filter_by(store_id = store_id).first()
+    @app.route('/Store/User', methods=['GET'])
+    @token_required_store
+    def returnusers(current_user,current_store):
+        
 
         return make_response(
             jsonify(
@@ -1394,7 +1725,7 @@ def create_app():
                     "message" : "The user and store information succesfully accessed",
                     "response" : { 
                                     "user" : current_user.details(),
-                                    "store" : store.details()
+                                    "store" : current_store.details()
                                 } 
 
                 },
@@ -1407,87 +1738,123 @@ def create_app():
 
     
     
-    
+    @app.route('/Store//User/Signup/<string:username>/<string:email>',methods=['GET'])
     @app.route('/Store/User/Signup', methods=['POST'])
     def signupstoreuser():
-        data = request.get_json()
+        if request.method == 'POST': 
+            data = request.get_json()
 
-        username = data.get('username')
-        password = data.get('password')
-        email = data.get('email')
-        firstname = data.get('firstname')
-        lastname = data.get('lastname')
-        year = data.get('year')
-        month = data.get('month')
-        day = data.get('day')
-        phonenumber = data.get('phonenumber')
+            username = data.get('username').lower()
+            password = data.get('password')
+            email = data.get('email').lower()
+            firstname = data.get('firstname').lower()
+            lastname = data.get('lastname').lower()
+            year = data.get('year')
+            month = data.get('month')
+            day = data.get('day')
+            phonenumber = data.get('phonenumber')
 
-        
-        try:
-            dob = date(int(year),int(month),int(day))
-        except:
-            return make_response( 
-                    jsonify(
-                        {
-                            "message" : "Invalid Date",
-                            "status" : False,
-                        }
-                    ),
-                    400
+            
+            try:
+                dob = date(int(year),int(month),int(day))
+            except:
+                return make_response( 
+                        jsonify(
+                            {
+                                "message" : "Invalid Date",
+                                "status" : False,
+                            }
+                        ),
+                        400
+                    )
+
+            
+            user_test = userModel.query.filter((userModel.username == username) | (userModel.email == email)).first()
+
+            if user_test is None:
+
+                user = userModel(
+                    username = username,
+                    password = generate_password_hash(password),
+                    email = email,
+                    firstname = firstname,
+                    lastname = lastname,
+                    dob = dob,
+                    phonenumber = phonenumber,
+                    created_on=datetime.utcnow(),
+                    usertype = Usertype.store.name
                 )
 
-        
-        user_username = userModel.query.filter_by(username = username).first()
-        user_email = userModel.query.filter_by(email = email).first()
+                user.insert()
+                token = jwt.encode({
+                    'usernumber': user.usernumber,
+                    'exp': datetime.utcnow() + timedelta(minutes = 30)
+                },app.config['SECRET_KEY'],algorithm="HS256")
 
-        if not user_username and not user_email:
-
-            user = userModel(
-                username = username,
-                password = generate_password_hash(password),
-                email = email,
-                firstname = firstname,
-                lastname = lastname,
-                dob = dob,
-                phonenumber = phonenumber,
-                created_on=datetime.utcnow(),
-                usertype = Usertype.store.name
-            )
-
-            user.insert()
-            token = jwt.encode({
-                'usernumber': user.usernumber,
-                'exp': datetime.utcnow() + timedelta(minutes = 30)
-            },app.config['SECRET_KEY'],algorithm="HS256")
-
-            url = url_for('verifyuser',token = token,_external=True)
-            template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                url = url_for('verifyuser',token = token,_external=True)
+                template = render_template('verifyTokenEmail.html',url = url)
+                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
 
-            return make_response(
-                jsonify(
-                        {
-                            "message" : "Registration successful",
-                            "status" : True,
-                        }
-                    ),
-                201,
-                {'WWW-Authenticate' : 'Registration successful'}
-            )
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "Registration successful",
+                                "status" : True,
+                            }
+                        ),
+                    201,
+                    {'WWW-Authenticate' : 'Registration successful'}
+                )
 
 
+            else:
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "User already exists",
+                                "status" : False,
+                            }
+                        ),
+                    400,
+                    {'WWW-Authenticate' : 'User already exists'}
+                )
         else:
-            return make_response(
-                jsonify(
-                        {
-                            "message" : "User already exists",
-                            "status" : False,
-                        }
-                    ),
-                400,
-                {'WWW-Authenticate' : 'User already exists'}
-            )
+            if username is None or email is None:
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "Please provide both the information",
+                                "status" : False,
+                            }
+                        ),
+                    400,
+                    {'WWW-Authenticate' : 'Provide proper information'}
+                )
+            else:
+                user_check = userModel.query.filter((userModel.username == username.lower()) | (userModel.email == email.lower())).first()
+
+                if user_check is None:
+                    return make_response(
+                        jsonify(
+                                {
+                                    "message" : "User can be created",
+                                    "status" : True,
+                                }
+                            ),
+                        200
+                    )
+                else:
+                    return make_response(
+                        jsonify(
+                                {
+                                    "message" : "User already exists",
+                                    "status" : False,
+                                }
+                            ),
+                        400,
+                        {'WWW-Authenticate' : 'User already exists'}
+                    )
     
 
 
@@ -1589,21 +1956,24 @@ def create_app():
                 )
         
 
+    ##################################################################################
+    # TO GET ALL THE BOOKS FOR PICKUP AT STORE
+    ##################################################################################    
+    @app.route('/Store/Books/Pickups', methods=['GET'])
+    @token_required_store
+    def getpickups(current_user,current_store):
+
+        store_id = current_store.store_id
+
         
-    @app.route('/Store/Books/Pickups', methods=['POST'])
-    @token_required
-    def getpickups(current_user):
-        data = request.get_json()
 
-        store_id = data.get('store_id')
+        result =  db.session.query(bookModel,transactionModel).\
+                    filter(transactionModel.store_id == store_id).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.pickup_by_borrower,transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller,transaction_statuses.sell.booked_by_buyer])).\
+                    all()
 
-        pickup_books = transactionModel.\
-                        query.\
-                        filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.lend.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.removed_by_lender) ).\
-                        all()
-
-        if not pickup_books: 
+        if result is None: 
             return make_response( 
                                 jsonify(
                                     {
@@ -1615,10 +1985,10 @@ def create_app():
                             )
         else :
             pickup_book_list = []
-            for book in pickup_books:
-                b = bookModel.query.filter_by(book_id = book.book_id).first()
-                book_dict = b.details()
-                book_dict['book_transaction_code'] = book.getcodes()
+            for book,transaction in result:
+                book_dict = book.details()
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_transaction_type'] = transaction.transaction_type
                 pickup_book_list.append(book_dict)
 
             return make_response( 
@@ -1635,21 +2005,23 @@ def create_app():
                         )
 
 
+    ##################################################################################
+    # TO GET ALL THE BOOKS FOR DROPOFFS AT STORE
+    ################################################################################## 
+    @app.route('/Store/Books/Dropoffs', methods=['GET'])
+    @token_required_store
+    def getdropoffs(current_user,current_store):
 
-    @app.route('/Store/Books/Dropoffs', methods=['POST'])
-    @token_required
-    def getdropoffs(current_user):
-        data = request.get_json()
+        store_id = current_store.store_id
 
-        store_id = data.get('store_id')
+        
+        result =  db.session.query(bookModel,transactionModel).\
+                    filter(transactionModel.store_id == store_id).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller])).\
+                    all()
 
-        dropoff_books = transactionModel.\
-                        query.\
-                        filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower) ).\
-                        all()
-
-        if not dropoff_books: 
+        if result is None: 
             return make_response( 
                                 jsonify(
                                     {
@@ -1661,10 +2033,10 @@ def create_app():
                             )
         else :
             dropoff_book_list = []
-            for book in dropoff_books:
-                b = bookModel.query.filter_by(book_id = book.book_id).first()
-                book_dict = b.details()
-                book_dict['book_transaction_code'] = book.getcodes()
+            for book,transaction in result:
+                book_dict = book.details()
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_transaction_type'] = transaction.transaction_type
                 dropoff_book_list.append(book_dict)
 
             return make_response( 
@@ -1680,25 +2052,26 @@ def create_app():
                             200,
                         )
                         
-                    
-    @app.route('/Store/Books/Getallbooks', methods=['POST'])
-    @token_required
-    def getallbooks(current_user):
-        data = request.get_json()
+    ##################################################################################
+    # TO GET ALL THE BOOKS IDLE AT THE STORE
+    ##################################################################################             
+    @app.route('/Store/Books/Idlebooks', methods=['GET'])
+    @token_required_store
+    def getallbooks(current_user,current_store):
+        store_id = current_store.store_id
 
-        store_id = data.get('store_id')
 
-        books = transactionModel.\
-                query.\
-                filter(transactionModel.store_id == store_id).\
-                filter( (transactionModel.transaction_status == transaction_statuses.lend.submitted_by_lender) | (transactionModel.transaction_status == transaction_statuses.lend.pickup_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.submitted_by_borrower) | (transactionModel.transaction_status == transaction_statuses.lend.removed_by_lender)).\
-                all()
+        result =  db.session.query(bookModel,transactionModel).\
+                    filter(transactionModel.store_id == store_id).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_lender,transaction_statuses.sell.submitted_by_seller])).\
+                    all()
 
-        if not books: 
+        if result is None: 
             return make_response( 
                                 jsonify(
                                     {
-                                        "message" : "No books at the store right now",
+                                        "message" : "No books are idle",
                                         "status" : True,
                                     }
                                 ),
@@ -1706,10 +2079,10 @@ def create_app():
                             )
         else :
             book_list = []
-            for book in books:
-                b = bookModel.query.filter_by(book_id = book.book_id).first()
-                book_dict = b.details()
-                book_dict['book_transaction_code'] = book.getcodes()
+            for book,transaction in result:
+                book_dict = book.details()
+                book_dict['book_transaction_code'] = transaction.getcodes()
+                book_dict['book_transaction_type'] = transaction.transaction_type
                 book_list.append(book_dict)
 
             return make_response( 
@@ -1727,51 +2100,61 @@ def create_app():
         
 
     @app.route('/Store/Transaction/Dropoffpricing', methods=['POST'])
-    @token_required
-    def dropoffpricing(current_user):
+    @token_required_store
+    def dropoffpricing(current_user,current_store):
         data = request.get_json()
-        store_id = data.get('store_id')
+        store_id = current_store.store_id
         book_id = data.get('book_id')
 
         transaction =   transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower) ).\
+                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller]) ).\
                         first()
         
-        
-        pricing = transaction.getdropoffpricing()
+        if transaction is not None:
+            pricing = transaction.getdropoffpricing()
 
-        return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "Dropoff pricing!",
-                                        "status" : True,
-                                        "response" : {
-                                            "pricing" : pricing
+            return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Dropoff pricing!",
+                                            "status" : True,
+                                            "response" : {
+                                                "pricing" : pricing
+                                            }
                                         }
-                                    }
-                                ),
-                                200,
-                            )
+                                    ),
+                                    200,
+                                )
+        else :
+            return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Cant give you dropoff pricing!",
+                                            "status" : False,
+                                        }
+                                    ),
+                                    200,
+                                )
 
 
     @app.route('/Store/Transaction/Confirmdropoff', methods=['POST'])
-    @token_required
-    def confirmdropoff(current_user):
+    @token_required_store
+    def confirmdropoff(current_user,current_store):
         data = request.get_json()
-        store_id = data.get('store_id')
+        store_id = current_store.store_id
         book_id = data.get('book_id')
 
         transaction =   transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
-                        filter( (transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower) ).\
+                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_lender,transaction_statuses.sell.submitted_by_seller])).\
                         first()
 
-        if not transaction : 
+        if transaction is None: 
             return make_response( 
                                 jsonify(
                                     {
@@ -1782,73 +2165,103 @@ def create_app():
                                 200,
                             )
         else : 
-            if transaction.transaction_status == transaction_statuses.lend.uploaded_with_lender : 
-                transaction.transaction_status = transaction_statuses.lend.submitted_by_lender
+            if transaction.transaction_type == Transactiontype.lend.name:
+                if transaction.transaction_status == transaction_statuses.lend.uploaded_with_lender : 
+                    transaction.transaction_status = transaction_statuses.lend.submitted_by_lender
+                    transaction.transaction_submit_ts = datetime.utcnow()
+                    transaction.update()
+
+                elif transaction.transaction_status == transaction_statuses.lend.return_by_borrower :
+                    transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
+                    transaction.store_transaction_status = store_transaction_statuses.lend.dropoff_by_borrower
+                    transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
+                    transaction.transaction_return_ts = datetime.utcnow()
+                    transaction.update()
+                
+                return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Dropoff confirmed!",
+                                            "status" : True,
+                                            "response" : {
+                                                "transaction" : transaction.details()
+                                            }
+                                        }
+                                    ),
+                                    200,
+                                )
+            else:
+                transaction.transaction_status = transaction_statuses.sell.uploaded_with_seller
                 transaction.transaction_submit_ts = datetime.utcnow()
                 transaction.update()
 
-            elif transaction.transaction_status == transaction_statuses.lend.return_by_borrower :
-                transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
-                transaction.store_transaction_status = store_transaction_statuses.lend.dropoff_by_borrower
-                transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
-                transaction.transaction_return_ts = datetime.utcnow()
-                transaction.update()
-            
-            return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "Dropoff confirmed!",
-                                        "status" : True,
-                                        "response" : {
-                                            "transaction" : transaction.details()
+                return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Dropoff confirmed!",
+                                            "status" : True,
+                                            "response" : {
+                                                "transaction" : transaction.details()
+                                            }
                                         }
-                                    }
-                                ),
-                                200,
-                            )
+                                    ),
+                                    200,
+                                )
 
     @app.route('/Store/Transaction/Pickuppricing', methods=['POST'])
-    @token_required
-    def pickuppricing(current_user):
+    @token_required_store
+    def pickuppricing(current_user,current_store):
         data = request.get_json()
-        store_id = data.get('store_id')
+        store_id = current_store.store_id
         book_id = data.get('book_id')
 
         transaction =   transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.lend.pickup_by_borrower,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller,transaction_statuses.sell.booked_by_buyer])).\
                         first()
         
-        
-        pricing = transaction.getpickuppricing()
+        if transaction is not None:
+            pricing = transaction.getpickuppricing()
 
-        return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "Pickup confirmed!",
-                                        "status" : True,
-                                        "response" : {
-                                            "pricing" : pricing
+            return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Pickup confirmed!",
+                                            "status" : True,
+                                            "response" : {
+                                                "pricing" : pricing
+                                            }
                                         }
-                                    }
-                                ),
-                                200,
-                            )
+                                    ),
+                                    200,
+                                )
+        else:
+            return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Can't show you pickup pricing!",
+                                            "status" : False,
+                                        }
+                                    ),
+                                    200,
+                                )
 
     @app.route('/Store/Transaction/Confirmpickup', methods=['POST'])
     @token_required
-    def confirmpickup(current_user):
+    def confirmpickup(current_user,current_store):
 
         data = request.get_json()
 
-        store_id = data.get('store_id')
+        store_id = current_store.store_id
         book_id = data.get('book_id')
 
         transaction =   transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.lend.pickup_by_borrower,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller,transaction_statuses.sell.booked_by_buyer])).\
                         first()
 
         if not transaction : 
@@ -1862,52 +2275,83 @@ def create_app():
                                 200,
                             )
         else :
-            
-            if transaction.transaction_status == transaction_statuses.lend.pickup_by_borrower: 
-                transaction.transaction_status = transaction_statuses.lend.borrowed_by_borrower
-                transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pickup_by_borrower
-                transaction.transaction_pickup_ts = datetime.utcnow()
-                transaction.update()
+            if transaction.transaction_type == Transactiontype.lend.name:
+                if transaction.transaction_status == transaction_statuses.lend.pickup_by_borrower: 
+                    transaction.transaction_status = transaction_statuses.lend.borrowed_by_borrower
+                    transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pickup_by_borrower
+                    transaction.transaction_pickup_ts = datetime.utcnow()
+                    transaction.update()
 
-            elif transaction.transaction_status == transaction_statuses.lend.submitted_by_borrower:
-                transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
-                transaction.lender_transaction_status = lender_transaction_statuses.lend.pickup_by_lender
-                transaction.store_transaction_status = store_transaction_statuses.lend.pickup_by_lender
-                transaction.transaction_lenderpickup_ts = datetime.utcnow()
-                transaction.update()
+                elif transaction.transaction_status == transaction_statuses.lend.submitted_by_borrower:
+                    transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
+                    transaction.lender_transaction_status = lender_transaction_statuses.lend.pickup_by_lender
+                    transaction.store_transaction_status = store_transaction_statuses.lend.pickup_by_lender
+                    transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                    transaction.update()
 
-            elif transaction.transaction_status == transaction_statuses.lend.removed_by_lender:
-                transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
-                transaction.transaction_lenderpickup_ts = datetime.utcnow()
-                transaction.update()
+                elif transaction.transaction_status == transaction_statuses.lend.removed_by_lender:
+                    transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
+                    transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                    transaction.update()
 
-            return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "Pickup confirmed!",
-                                        "status" : True,
-                                        "response" : {
-                                            "transaction" : transaction.details()
+                return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Pickup confirmed!",
+                                            "status" : True,
+                                            "response" : {
+                                                "transaction" : transaction.details()
+                                            }
                                         }
-                                    }
-                                ),
-                                200,
-                            )
+                                    ),
+                                    200,
+                                )
+            else:
+                if transaction.transaction_status == transaction_statuses.sell.booked_by_buyer: 
+                    transaction.transaction_status = transaction_statuses.sell.pickup_by_buyer
+                    transaction.borrower_transaction_status = borrower_transaction_statuses.sell.pickup_by_borrower
+                    transaction.transaction_pickup_ts = datetime.utcnow()
+                    transaction.update()
+
+                elif transaction.transaction_status == transaction_statuses.sell.pickup_by_buyer:
+                    transaction.transaction_status = transaction_statuses.sell.collected_by_seller
+                    transaction.lender_transaction_status = lender_transaction_statuses.sell.collected_by_seller
+                    transaction.store_transaction_status = store_transaction_statuses.sell.collected_by_seller
+                    transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                    transaction.update()
+
+                elif transaction.transaction_status == transaction_statuses.sell.removed_by_seller:
+                    transaction.transaction_status = transaction_statuses.sell.pickup_by_seller
+                    transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                    transaction.update()
+
+                return make_response( 
+                                    jsonify(
+                                        {
+                                            "message" : "Pickup confirmed!",
+                                            "status" : True,
+                                            "response" : {
+                                                "transaction" : transaction.details()
+                                            }
+                                        }
+                                    ),
+                                    200,
+                                )
 
 
 
 
     @app.route('/Store/Transaction/Pendingpayments', methods=['POST'])
-    @token_required
+    @token_required_store
     def pendingpayments(current_user):
         data = request.get_json()
 
-        store_id = data.get('store_id')
+        store_id = current_user.store_id
 
         transactions =   transactionModel.\
                         query.\
                         filter(transactionModel.store_id == store_id).\
-                        filter(transactionModel.store_transaction_status == store_transaction_statuses.lend.pickup_by_lender).\
+                        filter(transactionModel.store_transaction_status.in_([store_transaction_statuses.lend.pickup_by_lender,transaction_statuses.sell.collected_by_seller])).\
                         all()
 
         transactionlist = []
@@ -1935,34 +2379,6 @@ def create_app():
                                 200,
                             )
 
-
-    @app.route('/Store/Transaction/Pendingpaymentspaid', methods=['POST'])
-    @token_required
-    def pendingpaymentspaid(current_user):
-        data = request.get_json()
-
-        store_id = data.get('store_id')
-
-        transactions =   transactionModel.\
-                        query.\
-                        filter(transactionModel.store_id == store_id).\
-                        filter(transactionModel.store_transaction_status == store_transaction_statuses.lend.pickup_by_lender).\
-                        all()
-
-
-        for transaction in transactions:
-            transaction.store_transaction_status = store_transaction_statuses.lend.payment_collected
-            transaction.update()
-
-        return make_response( 
-                                jsonify(
-                                    {
-                                        "message" : "Payments received!",
-                                        "status" : True,
-                                    }
-                                ),
-                                200,
-                            )
 
         
 

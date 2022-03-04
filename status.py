@@ -28,7 +28,7 @@ class transaction_statuses:
         collected_by_seller = "Share collected successfully transaction complete"
         #cancellation cases
         removed_by_seller = "Removed! Please pick up book from shop"
-        pickup_by_seller = "Book with lender transaction complete"
+        pickup_by_seller = "Book with seller transaction complete"
 
 
 class lender_transaction_statuses:

@@ -324,7 +324,7 @@ class transactionModel(db.Model):
     transaction_pickup_ts = db.Column(db.DateTime)
     transaction_return_ts = db.Column(db.DateTime)
     transaction_lenderpickup_ts = db.Column(db.DateTime)
-    transaction_type = db.Column(db.Text)
+    ransaction_type = db.Column(db.Text)
 
 
     def __init__(self, book_id, transaction_status,lender_id , store_id, borrower_id, invoice_id, lender_transaction_status, store_transaction_status, borrower_transaction_status, book_price, transaction_upload_ts, transaction_submit_ts, transaction_pickup_ts, transaction_return_ts, transaction_lenderpickup_ts, transaction_type): 
