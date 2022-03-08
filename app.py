@@ -10,7 +10,7 @@ from flask_cors import CORS
 from sqlalchemy.sql.expression import true
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.type_api import NULLTYPE
-from models import invoiceModel, setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db, userpntokenModel
+from models import booksubjectsModel, invoiceModel, setup_db, storeModel, transactionModel, userModel,bookModel, db_drop_and_create_all , db, userpntokenModel
 
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
@@ -768,15 +768,17 @@ def create_app():
         price_filter = data.get("price_filter")
         genre_filter = data.get("genre_filter")
 
-
         query_string = "%"+book_query+"%"
+
+        keyword_search = booksubjectsModel.query.filter(booksubjectsModel.book_subject.ilike(query_string)).all()
+        bookids = [subjects.book_id for subjects in keyword_search]
 
         result = db.session.query(bookModel,transactionModel,storeModel).\
                             filter(bookModel.usernumber != current_user.usernumber).\
                             filter((transactionModel.transaction_status == transaction_statuses.lend.submitted_by_lender) | (transactionModel.transaction_status == transaction_statuses.sell.submitted_by_seller) ).\
                             filter(bookModel.store_id == storeModel.store_id).\
                             filter(bookModel.book_id == transactionModel.book_id).\
-                            filter(bookModel.book_name.ilike(query_string))
+                            filter(bookModel.book_name.ilike(query_string) | (bookModel.book_id.in_(bookids)))
                             
         if price_filter == 1:
             result = result.filter(bookModel.book_price <= 250)
@@ -981,7 +983,7 @@ def create_app():
                     filter(transactionModel.transaction_status != transaction_statuses.lend.pickup_by_lender).\
                     all()
 
-        if result is not None:
+        if not result or result is not None:
             for book,transaction,store in result:
                 book_dict = book.details()
                 book_dict['book_status'] = transaction.transaction_status
@@ -1031,7 +1033,7 @@ def create_app():
                     filter((transactionModel.transaction_status != transaction_statuses.sell.collected_by_seller)|(transactionModel.transaction_status != transaction_statuses.sell.pickup_by_seller)).\
                     all()
 
-        if result is not None:
+        if not result or result is not None:
             for book,transaction,store in result:
                 book_dict = book.details()
                 book_dict['book_status'] = transaction.transaction_status
@@ -1124,7 +1126,8 @@ def create_app():
                     filter(transactionModel.transaction_type == Transactiontype.lend.name).\
                     filter((transactionModel.transaction_status == transaction_statuses.lend.borrowed_by_borrower)|(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower)).\
                     all()
-        if result is not None:
+        if not result or result is not None:
+            
             for book,transaction,store in result:
                 book_dict = book.details()
                 book_dict['book_status'] = transaction.transaction_status
@@ -1179,7 +1182,7 @@ def create_app():
                     filter(transactionModel.transaction_status == transaction_statuses.sell.booked_by_buyer).\
                     all()
 
-        if result is not None:
+        if not result or result is not None:
             for book,transaction,store in result:
                 book_dict = book.details()
                 book_dict['book_status'] = transaction.transaction_status
@@ -1238,20 +1241,21 @@ def create_app():
                     filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller])).\
                     all()
         
-        if result1 is not None or result2 is not None:
-            if result1 is None:
+        if result1 or result2 or result1 is not None or result2 is not None:
+            if not result1 or result1 is None:
                 result = result2
-            elif result2 is None:
+            elif not result2 or result2 is None:
                 result = result1
             else:
                 result = result1+result2
-
+            print(result)
             for book,transaction,store in result:
                 book_dict = book.details()
                 book_dict['book_transaction_code'] = transaction.getcodes()
                 book_dict['book_transaction_type'] = transaction.transaction_type
                 book_dict['book_transaction_status'] = transaction.transaction_status
                 book_dict['store'] = store.details()
+                booklist.append(book_dict)
 
             return make_response(
                 jsonify(
@@ -1301,10 +1305,10 @@ def create_app():
                     filter(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower).\
                     all()
 
-        if result1 is not None or result2 is not None:
-            if result1 is None:
+        if result1 or result2 or result1 is not None or result2 is not None:
+            if not result1 or result1 is None:
                 result = result2
-            elif result2 is None:
+            elif not result2 or result2 is None:
                 result = result1
             else:
                 result = result2+result1
@@ -1315,6 +1319,7 @@ def create_app():
                 book_dict['book_transaction_type'] = transaction.transaction_type
                 book_dict['book_transaction_status'] = transaction.transaction_status
                 book_dict['store'] = store.details()
+                booklist.append(book_dict)
 
             return make_response(
                 jsonify(
@@ -1365,10 +1370,10 @@ def create_app():
                     filter(transactionModel.transaction_status.in_([transaction_statuses.lend.pickup_by_lender,transaction_statuses.sell.collected_by_seller,transaction_statuses.sell.pickup_by_seller])).\
                     all()
 
-        if result1 is not None or result2 is not None:
-            if result1 is None:
+        if result1 or result2 or result1 is not None or result2 is not None:
+            if not result1 or result1 is None:
                 result = result2
-            elif result2 is None:
+            elif not result2 or result2 is None:
                 result = result1
             else:
                 result = result1+result2
@@ -1378,6 +1383,7 @@ def create_app():
                 book_dict['book_transaction_type'] = transaction.transaction_type
                 book_dict['book_transaction_status'] = transaction.transaction_status
                 book_dict['store'] = store.details()
+                booklist.append(book_dict)
 
             return make_response(
                 jsonify(
@@ -1516,7 +1522,7 @@ def create_app():
        
         if transaction: 
 
-            if transaction.transation_type == Transactiontype.lend.name:
+            if transaction.transaction_type == Transactiontype.lend.name:
                 if transaction.transaction_status == transaction_statuses.lend.borrowed_by_borrower :
                     transaction.transaction_status = transaction_statuses.lend.return_by_borrower
                     transaction.update()
@@ -2000,7 +2006,7 @@ def create_app():
                     filter(transactionModel.transaction_status.in_([transaction_statuses.lend.pickup_by_borrower,transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller,transaction_statuses.sell.booked_by_buyer])).\
                     all()
 
-        if result is None: 
+        if not result or result is None: 
             return make_response( 
                                 jsonify(
                                     {
@@ -2048,7 +2054,7 @@ def create_app():
                     filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller])).\
                     all()
 
-        if result is None: 
+        if not result or result is None: 
             return make_response( 
                                 jsonify(
                                     {
@@ -2094,7 +2100,7 @@ def create_app():
                     filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_lender,transaction_statuses.sell.submitted_by_seller])).\
                     all()
 
-        if result is None: 
+        if not result or result is None: 
             return make_response( 
                                 jsonify(
                                     {
@@ -2178,7 +2184,7 @@ def create_app():
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
-                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_lender,transaction_statuses.sell.submitted_by_seller])).\
+                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller]) ).\
                         first()
 
         if transaction is None: 
@@ -2276,7 +2282,7 @@ def create_app():
                                 )
 
     @app.route('/Store/Transaction/Confirmpickup', methods=['POST'])
-    @token_required
+    @token_required_store
     def confirmpickup(current_user,current_store):
 
         data = request.get_json()
