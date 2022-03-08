@@ -1,6 +1,5 @@
 import enum
 
-
 class Usertype (enum.Enum):
     user = 1
     store = 2

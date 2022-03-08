@@ -756,7 +756,7 @@ def create_app():
             )
 
     @app.route('/Book/Search', methods = ['POST'])
-    #@token_required
+    @token_required
     def searchbooks(current_user):
 
         data = request.get_json()
@@ -773,7 +773,7 @@ def create_app():
 
         result = db.session.query(bookModel,transactionModel,storeModel).\
                             filter(bookModel.usernumber != current_user.usernumber).\
-                            filter((transactionModel.transaction_status == transaction_statuses.lend.uploaded_with_lender) | (transactionModel.transaction_status == transaction_statuses.sell.submitted_by_seller) ).\
+                            filter((transactionModel.transaction_status == transaction_statuses.lend.submitted_by_lender) | (transactionModel.transaction_status == transaction_statuses.sell.submitted_by_seller) ).\
                             filter(bookModel.store_id == storeModel.store_id).\
                             filter(bookModel.book_id == transactionModel.book_id).\
                             filter(bookModel.book_name.ilike(query_string))
@@ -787,8 +787,8 @@ def create_app():
         elif price_filter == 4:
             result = result.filter(bookModel.book_price >= 750)
 
-        if genre_filter != "" and genre_filter is not None:
-            result =  result.filter(bookModel.book_category == genre_filter.lower())
+        if genre_filter and genre_filter is not None:
+            result =  result.filter(bookModel.book_category.in_(genre_filter))
         
         result = result.all()
         
@@ -859,6 +859,33 @@ def create_app():
             )
             
 
+    @app.route('/Book/Upload/Getpricing/<string:transaction_type>/<int:book_price>',methods = ['GET'])
+    @token_required
+    def getuploadbookpricing(current_user,transaction_type = None,book_price = None):
+        if transaction_type is not None and book_price is not None:
+            pricing = transactionModel.getpricing()
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Book Pricing",
+                                "status" : True,
+                                "response" : {
+                                    "pricing" : pricing,
+                                }
+                    }
+                ),
+                200
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Can't retrieve pricing",
+                                "status" : False,
+                    }
+                ),
+                404
+            )
 
     @app.route('/Book/Upload',methods=['POST'])
     @token_required
