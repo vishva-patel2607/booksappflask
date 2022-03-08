@@ -818,14 +818,17 @@ def create_app():
             
 
 
-    @app.route('/Book/Upload/Image',methods=['POST','PUT'])
+    @app.route('/Book/Upload/Image',methods=['POST','PUT','GET','DELETE'])
     @token_required
     def uploadbookimage(current_user):
+
+        redis_key = "image_upload_"+str(current_user.usernumber)
         if request.method == 'POST':
             book_img = request.files['book_img']
             filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
             response = upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,app.config['BUCKET'],body=book_img)
             book_img_url = app.config['IMAGE_BUCKET_LINK']+filename
+            conn.set(redis_key,book_img_url)
             return make_response(
                 jsonify(
                     {
@@ -839,7 +842,7 @@ def create_app():
                 201
             )
 
-        else:
+        elif request.method == "PUT":
             old_book_url = request.form.get("old_book_img_url")
             old_book_filename = old_book_url.replace(app.config['IMAGE_BUCKET_LINK'],"")
             remove_response = remove_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],old_book_filename,app.config['BUCKET'])
@@ -847,6 +850,7 @@ def create_app():
             filename = secure_filename("book-"+datetime.utcnow().strftime("%m-%d-%Y_%H:%M:%S")+".jpg")
             upload_response = upload_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],filename,app.config['BUCKET'],body=book_img)
             book_img_url = app.config['IMAGE_BUCKET_LINK']+filename
+            conn.set(redis_key,book_img_url)
             return make_response(
                 jsonify(
                     {
@@ -859,6 +863,46 @@ def create_app():
                 ),
                 201
             )
+        elif request.method == "DELETE":
+            old_book_url = request.form.get("old_book_img_url")
+            old_book_filename = old_book_url.replace(app.config['IMAGE_BUCKET_LINK'],"")
+            remove_response = remove_file(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],old_book_filename,app.config['BUCKET'])
+            conn.delete(redis_key)
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Image removed succesfully",
+                                "status" : True
+                    }
+                ),
+                201
+            )
+        
+        else : 
+                url = conn.get(redis_key)
+                
+                if url is None:
+                    return make_response(
+                                jsonify(
+                                    {
+                                        "status" : False,
+                                        "message" : "No cached image!"
+                                    },
+                                ),
+                                400
+                            )
+                else:
+                    return make_response(
+                            jsonify(
+                                {
+                                    "status" : True,
+                                    "message" : "Cached image url",
+                                    "url" : url
+                                },
+                            ),
+                            201
+                        )
+
             
 
     @app.route('/Book/Upload/Getpricing/<string:transaction_type>/<int:book_price>',methods = ['GET'])
@@ -906,6 +950,9 @@ def create_app():
             transaction_type = Transactiontype.lend.name
         else :
             transaction_type = Transactiontype.sell.name
+
+        redis_key = "image_upload_"+str(current_user.usernumber)
+        conn.delete(redis_key)
 
         book = bookModel(
             book_name  = book_name,
@@ -1068,7 +1115,8 @@ def create_app():
         
 
 
-    @app.route('/Book/Uploadedbooks/Edit',methods=['PUT'])
+    @app.route('/Book/Lent/Edit',methods=['PUT'])
+    @app.route('/Book/Borrowed/Edit',methods=['PUT'])
     @token_required
     def edituploadedbook(current_user):
 
@@ -1076,19 +1124,27 @@ def create_app():
         book_id = data.get('book_id')
         book_name = data.get('book_name')
         book_author = data.get('book_author')
-        #book_price = int(data.get('book_price'))
+        book_price = int(data.get('book_price'))
         book_condition = data.get('book_condition')
         book_year = data.get('book_year')
+        book_transaction_type = data.get('book_transaction_type')
 
-        book = bookModel.query.filter_by(book_id = book_id).first()
+
+        book,transaction =  db.session.query(bookModel,transactionModel).\
+                    filter(bookModel.book_id == book_id).\
+                    filter(transactionModel.book_id == book_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.submitted_by_lender,transaction_statuses.sell.uploaded_with_seller,transaction_statuses.sell.submitted_by_seller])).\
+                    first()
 
         book.book_name = book_name
         book.book_author = book_author
-        #book.book_price = book_price
+        book.book_price = book_price
         book.book_condition = book_condition
         book.book_year = book_year
-        #book.setprice()
+        transaction.transaction_type = book_transaction_type
+        transaction.changeprice(book_price = book_price,transaction_type = book_transaction_type)
         book.update()
+        transaction.update()
 
         return make_response(
             jsonify(
@@ -1097,6 +1153,7 @@ def create_app():
                             "status" : True,
                             "response" : {
                                 "book" : book.details(),
+                                "transaction" : transaction.details()
                             }
                 }
             ),

@@ -387,6 +387,11 @@ class transactionModel(db.Model):
     def update(self):
         db.session.commit()
 
+
+    def changeprice(self,book_price,transaction_type):
+        self.book_price = book_price
+        self.setpricing(transaction_type)
+
     def getcodes(self):
         code = "code fetching error"
         tran_id = str(self.transaction_id).rjust(7,"0")
