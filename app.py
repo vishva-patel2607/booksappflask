@@ -879,7 +879,7 @@ def create_app():
             )
         
         else : 
-                url = conn.get(redis_key)
+                url = conn.get(redis_key).decode("utf-8")
                 
                 if url is None:
                     return make_response(
