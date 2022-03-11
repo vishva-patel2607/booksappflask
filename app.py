@@ -879,7 +879,7 @@ def create_app():
             )
         
         else : 
-                url = conn.get(redis_key).decode("utf-8")
+                url = conn.get(redis_key)
                 
                 if url is None:
                     return make_response(
@@ -892,6 +892,7 @@ def create_app():
                                 200
                             )
                 else:
+                    url = url.decode("utf-8")
                     return make_response(
                             jsonify(
                                 {
