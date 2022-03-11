@@ -889,7 +889,7 @@ def create_app():
                                         "message" : "No cached image!"
                                     },
                                 ),
-                                400
+                                200
                             )
                 else:
                     return make_response(
@@ -909,7 +909,7 @@ def create_app():
     @token_required
     def getuploadbookpricing(current_user,transaction_type = None,book_price = None):
         if transaction_type is not None and book_price is not None:
-            pricing = transactionModel.getpricing()
+            pricing = transactionModel.getpricing(transaction_type=transaction_type,book_price=book_price)
             return make_response(
                 jsonify(
                     {
