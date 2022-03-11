@@ -28,7 +28,7 @@ import geoalchemy2.functions as func
 from jinja2 import TemplateNotFound
 from notification import subscribetonotification,sendsmsmessage
 from config import configure_app
-from utility import booksubjectAdd, generateBill,generateOTP
+from utility import booksubjectAdd, generateBill,generateOTP, getpricing
 
 
 from mail import sendverifymail,sendchangepasswordmail
@@ -909,7 +909,7 @@ def create_app():
     @token_required
     def getuploadbookpricing(current_user,transaction_type = None,book_price = None):
         if transaction_type is not None and book_price is not None:
-            pricing = transactionModel().getpricing(transaction_type=transaction_type,book_price=book_price)
+            pricing = getpricing(transaction_type=transaction_type,book_price=book_price)
             return make_response(
                 jsonify(
                     {

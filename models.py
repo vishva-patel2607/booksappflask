@@ -432,14 +432,6 @@ class transactionModel(db.Model):
             self.store_cost = int(0.10*self.book_price)
             self.company_cost = int(0.15*self.book_price)
 
-    def getpricing(self,transaction_type,book_price):
-        if transaction_type == Transactiontype.lend.name:
-            return int(0.15*self.book_price)
-        elif transaction_type == Transactiontype.sell.name:
-            return int(0.75*self.book_price)
-        else:
-            return "pricing error"
-
 
     def getdropoffpricing(self):
         pricing = dict()

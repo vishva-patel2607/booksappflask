@@ -1,7 +1,7 @@
 from fileinput import filename
 import requests
 from models import booksubjectsModel, storeModel, transactionModel
-from status import transaction_statuses, store_transaction_statuses
+from status import Transactiontype, transaction_statuses, store_transaction_statuses
 import random
 import math
 import os
@@ -11,6 +11,13 @@ import datetime
 from s3_functions import upload_file, upload_invoice
 from werkzeug.utils import secure_filename
 
+def getpricing(transaction_type,book_price):
+        if transaction_type == Transactiontype.lend.name:
+            return int(0.15*book_price)
+        elif transaction_type == Transactiontype.sell.name:
+            return int(0.75*book_price)
+        else:
+            return "pricing error"
 
 def booksubjectAdd( book_id, isbn_no):
     response = (requests.get("https://openlibrary.org/isbn/" + isbn_no + ".json")).json()
