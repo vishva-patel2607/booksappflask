@@ -947,52 +947,91 @@ def create_app():
         book_author = request.form.get('book_author').lower()
         book_category = request.form.get('book_category').lower()
         book_isbn = request.form.get('book_isbn')
-        if request.form.get('transaction_type').lower() == Transactiontype.lend.name:
-            transaction_type = Transactiontype.lend.name
-        else :
-            transaction_type = Transactiontype.sell.name
 
+
+        if request.form.get('transaction_type').lower() == Transactiontype.lend.name:
+            book = bookModel(
+                book_name  = book_name,
+                book_year = book_year,
+                book_condition = book_condition,
+                book_img = book_img_url,
+                book_price = book_price,
+                store_id = store_id,
+                usernumber = usernumber,
+                book_author = book_author,
+                book_isbn= book_isbn,
+                book_category=book_category
+            )
+
+            book.insert()
+
+            transaction = transactionModel(
+                book_id= book.book_id,
+                transaction_status= transaction_statuses.lend.uploaded_with_lender,
+                lender_id= usernumber,
+                store_id= store_id,
+                borrower_id= None,
+                invoice_id = None,
+                lender_transaction_status= lender_transaction_statuses.lend.pending,
+                store_transaction_status= store_transaction_statuses.lend.pending,
+                borrower_transaction_status = borrower_transaction_statuses.lend.pending,
+                book_price= book_price,
+                transaction_upload_ts= datetime.now(),
+                transaction_submit_ts= None,
+                transaction_pickup_ts= None,
+                transaction_return_ts= None,
+                transaction_lenderpickup_ts= None,
+                transaction_type=Transactiontype.lend.name
+            )
+
+            transaction.insert()
+        else :
+
+            book = bookModel(
+                book_name  = book_name,
+                book_year = book_year,
+                book_condition = book_condition,
+                book_img = book_img_url,
+                book_price = book_price,
+                store_id = store_id,
+                usernumber = usernumber,
+                book_author = book_author,
+                book_isbn= book_isbn,
+                book_category=book_category
+            )
+
+            book.insert()
+
+            transaction = transactionModel(
+                book_id= book.book_id,
+                transaction_status= transaction_statuses.sell.uploaded_with_seller,
+                lender_id= usernumber,
+                store_id= store_id,
+                borrower_id= None,
+                invoice_id = None,
+                lender_transaction_status= lender_transaction_statuses.sell.pending,
+                store_transaction_status= store_transaction_statuses.sell.pending,
+                borrower_transaction_status = borrower_transaction_statuses.sell.pending,
+                book_price= book_price,
+                transaction_upload_ts= datetime.now(),
+                transaction_submit_ts= None,
+                transaction_pickup_ts= None,
+                transaction_return_ts= None,
+                transaction_lenderpickup_ts= None,
+                transaction_type=Transactiontype.sell.name
+            )
+
+            transaction.insert()
+
+        
         redis_key = "image_upload_"+str(current_user.usernumber)
         conn.delete(redis_key)
-
-        book = bookModel(
-            book_name  = book_name,
-            book_year = book_year,
-            book_condition = book_condition,
-            book_img = book_img_url,
-            book_price = book_price,
-            store_id = store_id,
-            usernumber = usernumber,
-            book_author = book_author,
-            book_isbn= book_isbn,
-            book_category=book_category
-        )
-
-        book.insert()
+        
 
 
         utility_queue.enqueue(booksubjectAdd,book.book_id,book.book_isbn)
 
-        transaction = transactionModel(
-            book_id= book.book_id,
-            transaction_status= transaction_statuses.lend.uploaded_with_lender,
-            lender_id= usernumber,
-            store_id= store_id,
-            borrower_id= None,
-            invoice_id = None,
-            lender_transaction_status= lender_transaction_statuses.lend.pending,
-            store_transaction_status= store_transaction_statuses.lend.pending,
-            borrower_transaction_status = borrower_transaction_statuses.lend.pending,
-            book_price= book_price,
-            transaction_upload_ts= datetime.now(),
-            transaction_submit_ts= None,
-            transaction_pickup_ts= None,
-            transaction_return_ts= None,
-            transaction_lenderpickup_ts= None,
-            transaction_type=transaction_type
-        )
-
-        transaction.insert()
+        
 
 
         return make_response(

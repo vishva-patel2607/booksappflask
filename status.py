@@ -20,7 +20,7 @@ class transaction_statuses:
         removed_by_lender = "Removed! Please pick up book from shop"
         pickup_by_lender = "Book with lender transaction complete"
     class sell:
-        uploaded_with_seller = "Uploaded! Please submit to shop"
+        uploaded_with_seller = "Uploaded!, Please submit to shop"
         submitted_by_seller = "Book in shop"
         booked_by_buyer = "Book will be bought by someone!"
         pickup_by_buyer = "Book sold! Collect your share from shop"
