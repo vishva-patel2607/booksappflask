@@ -1117,7 +1117,8 @@ def create_app():
                     filter(bookModel.book_id == transactionModel.book_id).\
                     filter(bookModel.store_id == storeModel.store_id).\
                     filter(transactionModel.transaction_type == Transactiontype.sell.name).\
-                    filter((transactionModel.transaction_status != transaction_statuses.sell.collected_by_seller)|(transactionModel.transaction_status != transaction_statuses.sell.pickup_by_seller)).\
+                    filter(transactionModel.transaction_status != transaction_statuses.sell.collected_by_seller).\
+                    filter(transactionModel.transaction_status != transaction_statuses.sell.pickup_by_seller).\
                     all()
 
         if not result or result is not None:
