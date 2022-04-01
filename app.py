@@ -1871,7 +1871,7 @@ def create_app():
     
     @app.route('/Store//User/Signup/<string:username>/<string:email>',methods=['GET'])
     @app.route('/Store/User/Signup', methods=['POST'])
-    def signupstoreuser():
+    def signupstoreuser(username=None,email=None):
         if request.method == 'POST': 
             data = request.get_json()
 
@@ -2005,9 +2005,12 @@ def create_app():
                     {'WWW-Authenticate' : 'Login required'}
                 )
 
-        user = userModel.query.filter_by(username = auth.get('username')).first()
+        user,store = db.session.query(userModel,storeModel).\
+                filter(userModel.username == auth.get('username')).\
+                filter(storeModel.usernumber == userModel.usernumber).\
+                first()
 
-        if not user or user.usertype != Usertype.store.name:
+        if not user or user.usertype != Usertype.store.name or user is None or store is None:
             return make_response( 
                     jsonify(
                         {
@@ -2053,8 +2056,6 @@ def create_app():
                 'usernumber': user.usernumber,
                 'exp': datetime.utcnow() + timedelta(minutes = 1000)
             },app.config['SECRET_KEY'],algorithm="HS256")
-
-            store = storeModel.query.filter_by(usernumber = user.usernumber).first()
 
             return make_response(
                 jsonify(
