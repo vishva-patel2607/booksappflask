@@ -755,16 +755,16 @@ def create_app():
                 201
             )
 
-    @app.route('/Book/Search', methods = ['POST'])
+    @app.route('/Book/Search/<int:offset>', methods = ['POST'])
     @token_required
-    def searchbooks(current_user):
+    def searchbooks(current_user,offset=1,limit=10):
 
         data = request.get_json()
 
         book_query = data.get("book_query")
         longitude = data.get("longitude")
         latitude = data.get("latitude")
-        #distance_filter =  data.get("distance_filter")
+        distance_filter =  data.get("distance_filter")
         price_filter = data.get("price_filter")
         genre_filter = data.get("genre_filter")
 
@@ -792,16 +792,28 @@ def create_app():
         if genre_filter and genre_filter is not None:
             result =  result.filter(bookModel.book_category.in_(genre_filter))
         
-        result = result.all()
+        if distance_filter is not None and distance_filter == 1:
+            result = result.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText('SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude))))
+        elif distance_filter is not None and distance_filter == 2:
+            result = result.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText('SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude))).desc())
+        else:
+            result = result.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText('SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude))))
         
+        if offset is not None:
+            result = result.offset((offset-1)*limit).limit(limit).all()
+        else:
+            result = result.limit(limit).all()
+
         retlist = []
         for book,transaction,store in result:
             book_dict = book.details()
             book_dict['store_distance'] = store.getdistance(longitude,latitude)
             book_dict['transaction_type'] = transaction.transaction_type
+            book_dict['store'] = store.details()
+            book_dict
             retlist.append(book_dict)
 
-        booklist = sorted(retlist, key=lambda k:k['store_distance'])
+       
 
         return make_response(
                 jsonify(
@@ -809,7 +821,7 @@ def create_app():
                             "message" : "All the Books for given query",
                             "status" : True,
                             "response" : {
-                                "book_list" : booklist,
+                                "book_list" : retlist,
                             }
                 }
                 ),
@@ -1346,7 +1358,7 @@ def create_app():
                 result = result1
             else:
                 result = result1+result2
-            print(result)
+            
             for book,transaction,store in result:
                 book_dict = book.details()
                 book_dict['book_transaction_code'] = transaction.getcodes()
@@ -2010,7 +2022,7 @@ def create_app():
                 filter(storeModel.usernumber == userModel.usernumber).\
                 first()
 
-        if not user or user.usertype != Usertype.store.name or user is None or store is None:
+        if not user or user.usertype != Usertype.store.name or user is None:
             return make_response( 
                     jsonify(
                         {
@@ -2021,6 +2033,20 @@ def create_app():
                     401,
                     {'WWW-Authenticate' : 'User does not exist'}
                 )
+
+        if store is None or not store:
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "Store not registered with this account please contact booksapp team",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'User does not exist'}
+                )
+
+
         if check_password_hash(user.password, auth.get('password')):
             emailverified = True
             phoneverified = True
