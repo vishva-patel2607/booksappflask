@@ -485,7 +485,10 @@ class transactionModel(db.Model):
             pricing['store']['mode'] = 'receives'
 
             pricing['buyer'] = None
+
+            return pricing
         
+
 
 
     def getpickuppricing(self):
