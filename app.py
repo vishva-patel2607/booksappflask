@@ -938,7 +938,7 @@ def create_app():
         else:
             return make_response(
                 jsonify(
-                    {
+                     {
                                 "message" : "Can't retrieve pricing",
                                 "status" : False,
                     }
@@ -1085,7 +1085,8 @@ def create_app():
         if not result or result is not None:
             for book,transaction,store in result:
                 book_dict = book.details()
-                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_type'] = transaction.transaction_type
+                book_dict['book_transaction_status'] = transaction.transaction_status
                 book_dict['book_transaction_code'] = transaction.getcodes()
                 book_dict['store'] = store.details()
                 booklist.append(book_dict)
@@ -1136,7 +1137,8 @@ def create_app():
         if not result or result is not None:
             for book,transaction,store in result:
                 book_dict = book.details()
-                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_type'] = transaction.transaction_type
+                book_dict['book_transaction_status'] = transaction.transaction_status
                 book_dict['book_transaction_code'] = transaction.getcodes()
                 book_dict['store'] = store.details()
                 booklist.append(book_dict)
@@ -1183,35 +1185,47 @@ def create_app():
         book_transaction_type = data.get('book_transaction_type')
 
 
-        book,transaction =  db.session.query(bookModel,transactionModel).\
+        data =  db.session.query(bookModel,transactionModel).\
                     filter(bookModel.book_id == book_id).\
-                    filter(transactionModel.book_id == book_id).\
+                    filter(transactionModel.book_id == bookModel.book_id).\
                     filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.submitted_by_lender,transaction_statuses.sell.uploaded_with_seller,transaction_statuses.sell.submitted_by_seller])).\
                     first()
 
-        book.book_name = book_name
-        book.book_author = book_author
-        book.book_price = book_price
-        book.book_condition = book_condition
-        book.book_year = book_year
-        transaction.transaction_type = book_transaction_type
-        transaction.changeprice(book_price = book_price,transaction_type = book_transaction_type)
-        book.update()
-        transaction.update()
+        if data is not None: 
+            book,transaction =  data 
+            book.book_name = book_name
+            book.book_author = book_author
+            book.book_price = book_price
+            book.book_condition = book_condition
+            book.book_year = book_year
+            transaction.transaction_type = book_transaction_type
+            transaction.changeprice(book_price = book_price,transaction_type = book_transaction_type)
+            book.update()
+            transaction.update()
 
-        return make_response(
-            jsonify(
-                {
-                            "message" : "Book Updated",
-                            "status" : True,
-                            "response" : {
-                                "book" : book.details(),
-                                "transaction" : transaction.details()
-                            }
-                }
-            ),
-            201
-        )
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Book Updated",
+                                "status" : True,
+                                "response" : {
+                                    "book" : book.details(),
+                                    "transaction" : transaction.details()
+                                }
+                    }
+                ),
+                201
+            )
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "This book can't be updated!",
+                                "status" : False
+                    }
+                ),
+                201
+            )
 
     
             
@@ -1240,7 +1254,8 @@ def create_app():
             
             for book,transaction,store in result:
                 book_dict = book.details()
-                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_type'] = transaction.transaction_type
+                book_dict['book_transaction_status'] = transaction.transaction_status
                 book_dict['book_transaction_code'] = transaction.getcodes()
                 book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
                 book_dict['store'] = store.details()
@@ -1295,7 +1310,8 @@ def create_app():
         if not result or result is not None:
             for book,transaction,store in result:
                 book_dict = book.details()
-                book_dict['book_status'] = transaction.transaction_status
+                book_dict['book_transaction_type'] = transaction.transaction_type
+                book_dict['book_transaction_status'] = transaction.transaction_status
                 book_dict['book_transaction_code'] = transaction.getcodes()
                 book_dict['book_pickup_date'] = transaction.transaction_pickup_ts.strftime("%m-%d-%Y")
                 book_dict['store'] = store.details()
@@ -2017,10 +2033,24 @@ def create_app():
                     {'WWW-Authenticate' : 'Login required'}
                 )
 
-        user,store = db.session.query(userModel,storeModel).\
+        data = db.session.query(userModel,storeModel).\
                 filter(userModel.username == auth.get('username')).\
                 filter(storeModel.usernumber == userModel.usernumber).\
                 first()
+
+        if data is None:
+            return make_response( 
+                    jsonify(
+                        {
+                            "message" : "User does not exist",
+                            "status" : False,
+                        }
+                    ),
+                    401,
+                    {'WWW-Authenticate' : 'User does not exist'}
+                )
+
+        user,store = data
 
         if not user or user.usertype != Usertype.store.name or user is None:
             return make_response( 
