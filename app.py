@@ -2529,28 +2529,17 @@ def create_app():
 
 
 
-    @app.route('/Store/Transaction/Pendingpayments', methods=['POST'])
+    @app.route('/Store/Transaction/Pendingpayments', methods=['GET'])
     @token_required_store
-    def pendingpayments(current_user):
-        data = request.get_json()
+    def pendingpayments(current_user,current_store):
 
-        store_id = current_user.store_id
+        store_id = current_store.store_id
 
         transactions =   transactionModel.\
                         query.\
                         filter(transactionModel.store_id == store_id).\
-                        filter(transactionModel.store_transaction_status.in_([store_transaction_statuses.lend.pickup_by_lender,transaction_statuses.sell.collected_by_seller])).\
+                        filter(transactionModel.store_transaction_status.in_([store_transaction_statuses.lend.pickup_by_lender,transaction_statuses.sell.collected_by_seller,store_transaction_statuses.sell.transaction_invoiced,store_transaction_statuses.lend.transaction_invoiced])).\
                         all()
-
-        transactionlist = []
-        total_payment = 0
-
-        for transaction in transactions:
-            trandict = transaction.details()
-            pay = transaction.getbooksapppaymentprincing()
-            trandict['store_payment'] = pay
-            total_payment += pay
-            transactionlist.append(trandict)
 
 
         return make_response( 
@@ -2559,13 +2548,75 @@ def create_app():
                                         "message" : "All the pending payments!",
                                         "status" : True,
                                         "response" : {
-                                            "transactions" : transactionlist,
-                                            "totalpayment" : total_payment
+                                            "transactions" : transactions
                                         }
                                     }
                                 ),
                                 200,
                             )
+
+
+    @app.route('/Store/Transaction/Invoices', methods=['GET'])
+    @token_required_store
+    def storeinvoices(current_user,current_store):
+
+        store_id = current_store.store_id
+
+        invoices =   invoiceModel.query.\
+                        filter(invoiceModel.store_id == store_id).\
+                        order_by(invoiceModel.invoice_date.desc()).\
+                        all()
+
+
+        return make_response( 
+                                jsonify(
+                                    {
+                                        "message" : "All the pending payments!",
+                                        "status" : True,
+                                        "response" : {
+                                            "invoices" : invoices
+                                        }
+                                    }
+                                ),
+                                200,
+                            )
+
+    @app.route('/Store/Transaction/Invoices/<int:invoice_id>/Transactions', methods=['GET'])
+    @token_required_store
+    def storeinvoicestransactions(current_user,current_store,invoice_id):
+
+        store_id = current_store.store_id
+
+
+        if invoice_id != None:
+            invoice = invoiceModel.query.filter(invoiceModel.invoice_id == invoice_id).filter(invoiceModel.store_id == store_id).first()
+
+            if invoice and invoice is not None:
+                transactions = transactionModel.query.filter(transactionModel.invoice_id == invoice.invoice_id).all()
+                
+                return make_response( 
+                                        jsonify(
+                                            {
+                                                "message" : "All the transactions!",
+                                                "status" : True,
+                                                "response" : {
+                                                    "transactions" : transactions
+                                                }
+                                            }
+                                        ),
+                                        200,
+                                    )
+
+
+        return make_response( 
+                                        jsonify(
+                                            {
+                                                "message" : "Can't get transactions for given invoice id!",
+                                                "status" : False,
+                                            }
+                                        ),
+                                        404,
+                                    )
 
 
         
