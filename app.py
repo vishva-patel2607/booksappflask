@@ -2144,6 +2144,115 @@ def create_app():
                 )
         
 
+
+
+    @app.route('/Store/User/Forgotpassword',methods=['POST'])
+    def forgotpassword():
+        data = request.get_json()
+
+        username = data.get('username')
+
+        user = userModel.query.filter_by(username = username).first()
+        
+        if not user:
+            return make_response(
+                jsonify(
+                        {
+                            "message" : "Username does not exist!",
+                            "status" : False,
+                        }
+                    ),
+                400,
+            )
+        
+        else: 
+            if not user.email_verified or user.email_verified == None:
+                return make_response(
+                    jsonify(
+                            {
+                                "message" : "User not verified",
+                                "status" : False,
+                            }
+                        ),
+                    400,
+                )
+            
+            else: 
+            
+                store = storeModel.query.filter_by(usernumber = user.usernumber).first()
+
+                if not store or store is None:
+                    return make_response(
+                        jsonify(
+                                {
+                                    "message" : "Account is not linked with a shop",
+                                    "status" : False,
+                                }
+                            ),
+                        400,
+                    )
+                
+                else:
+                    
+                    token = jwt.encode({
+                        'usernumber': user.usernumber,
+                        'exp': datetime.utcnow() + timedelta(minutes = 30)
+                    },app.config['SECRET_KEY'],algorithm="HS256")
+
+                    url = url_for('verifychangepassword',token = token,_external=True)
+                    template = render_template('verifyTokenPassword.html',url = url)
+                    mail_queue.enqueue(sendchangepasswordmail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+
+                    return make_response(
+                            jsonify(
+                                    {
+                                        "message" : "A link to change your password is sent to your registered email address",
+                                        "status" : True,
+                                    }
+                                ),
+                            201,
+                            {'WWW-Authenticate' : 'Registration successful'}
+                        )
+
+        
+
+
+
+    @app.route('/Store/User/Changepassword',methods=['PUT'])
+    @token_required_store
+    def changepassword(current_user,current_store):
+        data = request.get_json()
+
+        oldpassword = data.get('oldpassword')
+        newpassword = data.get('newpassword')
+
+        if check_password_hash(current_user.password, oldpassword):
+            current_user.password  = generate_password_hash(newpassword)
+            
+            current_user.update()
+
+            return make_response(
+                jsonify(
+                        {
+                            "message" : "Password Changed",
+                            "status" : True,
+                        }
+                    ),
+                201,
+                {'WWW-Authenticate' : 'Password Changed!'}
+            )
+        else:
+            return make_response(
+                jsonify(
+                        {
+                            "message" : 'Old password incorrect!',
+                            "status" : False,
+                        }
+                    ),
+                401,
+                {'WWW-Authenticate' :  'Old password incorrect!'}
+            )
+
     ##################################################################################
     # TO GET ALL THE BOOKS FOR PICKUP AT STORE
     ##################################################################################    
