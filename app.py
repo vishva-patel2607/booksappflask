@@ -2147,7 +2147,7 @@ def create_app():
 
 
     @app.route('/Store/User/Forgotpassword',methods=['POST'])
-    def forgotpassword():
+    def storeforgotpassword():
         data = request.get_json()
 
         username = data.get('username')
@@ -2220,7 +2220,7 @@ def create_app():
 
     @app.route('/Store/User/Changepassword',methods=['PUT'])
     @token_required_store
-    def changepassword(current_user,current_store):
+    def storechangepassword(current_user,current_store):
         data = request.get_json()
 
         oldpassword = data.get('oldpassword')
