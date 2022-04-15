@@ -2488,7 +2488,7 @@ def create_app():
                                     200,
                                 )
             else:
-                transaction.transaction_status = transaction_statuses.sell.uploaded_with_seller
+                transaction.transaction_status = transaction_statuses.sell.submitted_by_seller
                 transaction.transaction_submit_ts = datetime.utcnow()
                 transaction.update()
 
@@ -2647,7 +2647,7 @@ def create_app():
         transactions =   transactionModel.\
                         query.\
                         filter(transactionModel.store_id == store_id).\
-                        filter(transactionModel.store_transaction_status.in_([store_transaction_statuses.lend.pickup_by_lender,transaction_statuses.sell.collected_by_seller,store_transaction_statuses.sell.transaction_invoiced,store_transaction_statuses.lend.transaction_invoiced])).\
+                        filter(transactionModel.store_transaction_status.in_([store_transaction_statuses.lend.pickup_by_lender,store_transaction_statuses.sell.collected_by_seller,store_transaction_statuses.sell.transaction_invoiced,store_transaction_statuses.lend.transaction_invoiced])).\
                         all()
 
 
