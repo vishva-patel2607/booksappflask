@@ -3,6 +3,7 @@ from email import message
 import json
 from multiprocessing import connection
 import os
+from utility import decode_redis
 from flask import Flask,render_template, request, abort, jsonify ,make_response, session, redirect
 
 from flask.helpers import url_for
@@ -225,13 +226,16 @@ def create_app():
         usernumber = usernumber
         phonenumber = phonenumber
         user = userModel.query.filter(userModel.usernumber == usernumber).first()
-
+        
         if usernumber is not None and phonenumber is not None and user is not None: #and user.phn_verified is not None and user.phn_verified != False:
+            redis_key = "otp_"+str(usernumber)
             if request.method == 'GET':
                 otp = generateOTP()
 
+                message = str('The OTP for verifying your Booksapp account mobile number is : '+otp)
+                sendsmsmessage(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],phonenumber,message)
                 conn.set(
-                        usernumber,
+                        redis_key,
                         json.dumps({
                                 'usernumber': usernumber,
                                 'phonenumber': phonenumber,
@@ -239,8 +243,6 @@ def create_app():
                             }),
                         ex=600
                         )
-                message = str('The OTP for verifying your Booksapp account mobile number is : '+otp)
-                sendsmsmessage(app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],phonenumber,message)
                 return make_response(
                                 jsonify(
                                     {
@@ -253,7 +255,7 @@ def create_app():
             else:
                 data = request.get_json()
                 request_otp = data.get('otp')
-                byte_value= conn.get(usernumber)
+                byte_value= conn.get(redis_key)
                 
                 if byte_value is None:
                     return make_response(
@@ -764,9 +766,9 @@ def create_app():
         book_query = data.get("book_query")
         longitude = data.get("longitude")
         latitude = data.get("latitude")
-        distance_filter =  data.get("distance_filter")
         price_filter = data.get("price_filter")
         genre_filter = data.get("genre_filter")
+        condition_filter = data.get("condition_filter")
 
         query_string = "%"+book_query+"%"
 
@@ -791,13 +793,11 @@ def create_app():
 
         if genre_filter and genre_filter is not None:
             result =  result.filter(bookModel.book_category.in_(genre_filter))
+
+        if condition_filter and condition_filter is not None:
+            result =  result.filter(bookModel.book_condition.in_(condition_filter))
         
-        if distance_filter is not None and distance_filter == 1:
-            result = result.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText('SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude))))
-        elif distance_filter is not None and distance_filter == 2:
-            result = result.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText('SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude))).desc())
-        else:
-            result = result.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText('SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude))))
+        result = result.order_by(Comparator.distance_centroid(storeModel.store_location,func.ST_GeographyFromText('SRID=4326;POINT(%.8f %.8f)' % (longitude,latitude))))
         
         if offset is not None:
             result = result.offset((offset-1)*limit).limit(limit).all()
@@ -1063,6 +1063,57 @@ def create_app():
 
     ######################################### HOME PAGE ################################################
 
+    ##################################################################################
+    # TO GET ALL THE BOOKS THAT USER HAS LENT CURRENTLY
+    ##################################################################################
+
+
+    @app.route('/Book/Alerts',methods=['GET'])
+    @token_required
+    def getallalerts(current_user):
+
+        data = conn.hgetall(current_user.usernumber)
+
+        if data is not None and len(data) > 0:
+            decoded_data = decode_redis(data)
+
+            data = db.session.query(bookModel,transactionModel).\
+                    filter(transactionModel.book_id.in_(decoded_data.keys())).\
+                    filter(bookModel.book_id == transactionModel.book_id).\
+                    all()
+
+            ret_list = []
+            for book,transaction in data:
+                book_dict = book.details()
+                book_dict['book_transaction_info'] = transaction.details()
+                book_dict['book_transaction_default'] = decoded_data[book.book_id]
+
+             
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "All the alerts for the user are",
+                                "status" : True,
+                                "response" : {
+                                    "books" : ret_list
+                                }
+                    }
+                ),
+                200
+            )  
+
+        else:
+            return make_response(
+                jsonify(
+                    {
+                                "message" : "Error fetching alerts",
+                                "status" : False,
+                    }
+                ),
+                404
+            ) 
+
+    
 
     ##################################################################################
     # TO GET ALL THE BOOKS THAT USER HAS LENT CURRENTLY

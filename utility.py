@@ -11,6 +11,22 @@ import datetime
 from s3_functions import upload_file, upload_invoice
 from werkzeug.utils import secure_filename
 
+def decode_redis(src):
+    if isinstance(src, list):
+        rv = list()
+        for key in src:
+            rv.append(decode_redis(key))
+        return rv
+    elif isinstance(src, dict):
+        rv = dict()
+        for key in src:
+            rv[key.decode()] = decode_redis(src[key])
+        return rv
+    elif isinstance(src, bytes):
+        return src.decode()
+    else:
+        raise Exception("type not handled: " +type(src))
+
 def getpricing(transaction_type,book_price):
         if transaction_type == Transactiontype.lend.name:
             return int(0.15*book_price)

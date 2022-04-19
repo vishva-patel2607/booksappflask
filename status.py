@@ -8,6 +8,14 @@ class Usertype (enum.Enum):
 class Transactiontype (enum.Enum):
     lend = 1
     sell = 2
+
+class Defaulttype (enum.Enum):
+    UPLOADED_BOOK_NOT_SUBMITTED = 1
+    RETURNED_BOOK_NOT_PICKEDUP = 2
+    BOOKED_BOOK_NOT_PICKEDUP = 3
+    BORROOWED_BOOK_NOT_RETURNED = 4
+    REMOVED_BOOK_NOT_DROPPEDOFF = 5
+
     
 class transaction_statuses:
     class lend:
