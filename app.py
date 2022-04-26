@@ -2899,6 +2899,8 @@ def create_app():
                         filter(transactionModel.store_transaction_status.in_([store_transaction_statuses.lend.pickup_by_lender,store_transaction_statuses.sell.collected_by_seller,store_transaction_statuses.sell.transaction_invoiced,store_transaction_statuses.lend.transaction_invoiced])).\
                         all()
 
+        ret_transactions = [transaction.details() for transaction in transactions]
+
 
         return make_response( 
                                 jsonify(
@@ -2906,7 +2908,7 @@ def create_app():
                                         "message" : "All the pending payments!",
                                         "status" : True,
                                         "response" : {
-                                            "transactions" : transactions
+                                            "transactions" : ret_transactions
                                         }
                                     }
                                 ),
