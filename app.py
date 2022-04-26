@@ -29,7 +29,7 @@ import geoalchemy2.functions as func
 from jinja2 import TemplateNotFound
 from notification import subscribetonotification,sendsmsmessage
 from config import configure_app
-from utility import booksubjectAdd, generateBill,generateOTP, getpricing
+from utility import booksubjectAdd, generateBill,generateOTP, getpricing,generateUserScore
 
 
 from mail import sendverifymail,sendchangepasswordmail
@@ -51,9 +51,9 @@ def create_app():
     setup_db(app)
     configure_app(app)
     
-    mail_queue = Queue('mail',connection=conn)
-    notification_queue = Queue('notification',connection=conn)
-    utility_queue = Queue('notification',connection=conn)
+    high_queue = Queue('High',connection=conn)
+    mid_queue = Queue('Mid',connection=conn)
+    low_queue = Queue('Low',connection=conn)
     
     
     
@@ -199,7 +199,7 @@ def create_app():
         else :
             if platform == 'android':
                 platformarn = app.config['FCM_ARN']
-                notification_queue.enqueue(subscribetonotification,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],platformarn,usernumber,devicepushtoken,platform)
+                mid_queue.enqueue(subscribetonotification,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],platformarn,usernumber,devicepushtoken,platform)
 
                 return make_response(
                     jsonify(
@@ -372,7 +372,7 @@ def create_app():
 
                 url = url_for('verifyuser',token = token,_external=True)
                 template = render_template('verifyTokenEmail.html',url = url)
-                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                high_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
                 
             if not user.phn_verified or user.phn_verified is None:
                 phoneverified = False
@@ -482,7 +482,7 @@ def create_app():
 
                 url = url_for('verifyuser',token = token,_external=True)
                 template = render_template('verifyTokenEmail.html',url = url)
-                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                high_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
                 return make_response(
                     jsonify(
@@ -599,7 +599,7 @@ def create_app():
 
         url = url_for('verifyuser',token = token,_external=True)
         template = render_template('verifyTokenEmail.html',url = url)
-        mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],current_user.email,template,retry=Retry(max=2))
+        high_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],current_user.email,template,retry=Retry(max=2))
 
 
         return make_response( 
@@ -669,7 +669,7 @@ def create_app():
 
                     url = url_for('verifychangepassword',token = token,_external=True)
                     template = render_template('verifyTokenPassword.html',url = url)
-                    mail_queue.enqueue(sendchangepasswordmail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                    high_queue.enqueue(sendchangepasswordmail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
                     return make_response(
                             jsonify(
@@ -990,7 +990,9 @@ def create_app():
                 book_price= book_price,
                 transaction_upload_ts= datetime.now(),
                 transaction_submit_ts= None,
+                transaction_book_ts= None,
                 transaction_pickup_ts= None,
+                transaction_remove_ts = None,
                 transaction_return_ts= None,
                 transaction_lenderpickup_ts= None,
                 transaction_type=Transactiontype.lend.name
@@ -1041,7 +1043,7 @@ def create_app():
         
 
 
-        utility_queue.enqueue(booksubjectAdd,book.book_id,book.book_isbn)
+        low_queue.enqueue(booksubjectAdd,book.book_id,book.book_isbn)
 
         
 
@@ -1118,7 +1120,6 @@ def create_app():
     ##################################################################################
     # TO GET ALL THE BOOKS THAT USER HAS LENT CURRENTLY
     ##################################################################################
-    @app.route('/Book/Uploadedbooks',methods=['POST'])              #delete once done
     @app.route('/Book/Lent', methods=['GET'])
     @token_required
     def lentbooks(current_user):
@@ -1222,7 +1223,7 @@ def create_app():
 
 
     @app.route('/Book/Lent/Edit',methods=['PUT'])
-    @app.route('/Book/Borrowed/Edit',methods=['PUT'])
+    @app.route('/Book/Sold/Edit',methods=['PUT'])
     @token_required
     def edituploadedbook(current_user):
 
@@ -1242,7 +1243,7 @@ def create_app():
                     filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.submitted_by_lender,transaction_statuses.sell.uploaded_with_seller,transaction_statuses.sell.submitted_by_seller])).\
                     first()
 
-        if data is not None: 
+        if data is not None and book_transaction_type in [Transactiontype.lend.name,Transactiontype.sell.name]: 
             book,transaction =  data 
             book.book_name = book_name
             book.book_author = book_author
@@ -1251,6 +1252,10 @@ def create_app():
             book.book_year = book_year
             transaction.transaction_type = book_transaction_type
             transaction.changeprice(book_price = book_price,transaction_type = book_transaction_type)
+            if book_transaction_type == Transactiontype.lend.name:
+                transaction.transaction_score = 100
+            else:
+                transaction.transaction_score = 95
             book.update()
             transaction.update()
 
@@ -1286,7 +1291,6 @@ def create_app():
     ##################################################################################
     # TO GET ALL THE BOOKS USER HAS BORROWED CURRENTLY
     ##################################################################################
-    @app.route('/Book/Pickedupbooks',methods=['POST'])
     @app.route('/Book/Borrowed',methods=['GET'])
     @token_required
     def pickedupbooks(current_user):
@@ -1397,7 +1401,6 @@ def create_app():
     ##################################################################################
     # TO GET ALL THE BOOK PICKUPS FOR THE USER
     ##################################################################################
-    @app.route('/Book/Pickedupbooks/Added',methods=['POST'])
     @app.route('/Book/Pickups',methods=['GET'])
     @token_required
     def pickups(current_user):
@@ -1461,7 +1464,6 @@ def create_app():
     ##################################################################################
     # TO GET ALL THE BOOK DROPOFFS FOR THE USER
     ##################################################################################
-    @app.route('/Book/Pickedupbooks/Removed',methods=['POST'])
     @app.route('/Book/Dropoffs',methods=['GET'])
     @token_required
     def dropoffs(current_user):
@@ -1479,7 +1481,7 @@ def create_app():
                     filter(transactionModel.borrower_id == current_user.usernumber).\
                     filter(transactionModel.book_id == bookModel.book_id).\
                     filter(bookModel.store_id == storeModel.store_id).\
-                    filter(transactionModel.transaction_status == transaction_statuses.lend.return_by_borrower).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.return_by_borrower,transaction_statuses.lend.lost_by_borrower]) ).\
                     all()
 
         if result1 or result2 or result1 is not None or result2 is not None:
@@ -1590,7 +1592,6 @@ def create_app():
     ##################################################################################
     # TO DELETE OR REMOVE BOOKS UPLOADED FOR LENDING AND SELLING CURRENTLY
     ##################################################################################
-    @app.route('/Book/Uploadedbooks/Remove',methods=['DELETE'])
     @app.route('/Book/Lent/Remove', methods=['DELETE'])
     @app.route('/Book/Sold/Remove', methods=['DELETE'])
     @token_required
@@ -1681,7 +1682,6 @@ def create_app():
     ##################################################################################
     # TO DELETE OR REMOVE BOOKS BORROWED AND BOOKED FOR BUYING CURRENTLY
     ##################################################################################
-    @app.route('/Book/Pickedupbooks/Remove',methods=['POST'])
     @app.route('/Book/Borrowed/Remove', methods = ['DELETE'])
     @app.route('/Book/Bought/Remove', methods=['DELETE'])
     @token_required
@@ -1702,6 +1702,7 @@ def create_app():
             if transaction.transaction_type == Transactiontype.lend.name:
                 if transaction.transaction_status == transaction_statuses.lend.borrowed_by_borrower :
                     transaction.transaction_status = transaction_statuses.lend.return_by_borrower
+                    transaction.transaction_remove_ts = datetime.utcnow()
                     transaction.update()
                     return make_response(
                         jsonify(
@@ -1790,10 +1791,76 @@ def create_app():
                 406
             )
 
+
+    ##################################################################################
+    # TO CLAIM BOOK AS LOST
+    ###################################################################################
+    @app.route('/Book/Borrowed/Lost',methods=['PUT'])
+    @token_required
+    def claimbookaslost(current_user):
+        data = request.get_json()
+        book_id = data.get('book_id')
+
+        transaction = transactionModel.\
+                        query.\
+                        filter(transactionModel.book_id == book_id).\
+                        first()
+
+
+        if transaction:
+            if transaction.transaction_type == Transactiontype.lend.name: 
+                if transaction.transaction_status == transaction_statuses.lend.borrowed_by_borrower:
+                    transaction.transaction_status = transaction_statuses.lend.lost_by_borrower
+                    transaction.transaction_score = 25
+                    transaction.update()
+                    if conn.hexists(transaction.borrower_id,transaction.book_id):
+                        conn.hdel(transaction.lender_id,transaction.book_id)
+
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book added to dropoff pay full book price to store",
+                                        "status" : True,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+                else:
+                    return make_response(
+                        jsonify(
+                            {
+                                        "message" : "Book can't be added to lost",
+                                        "status" : False,
+                                        "response" : {
+                                            "transaction" : transaction.details()
+                                        }
+                            }
+                        ),
+                        202
+                    )
+            else:
+                return make_response(
+                    jsonify(
+                        {
+                                    "message" : "Error with adding book to lost",
+                                    "status" : True,
+                                    "response" : {
+                                        "transaction" : transaction.details()
+                                    }
+                        }
+                    ),
+                    406
+                )
+
+
+        
+
     ##################################################################################
     # TO ADD BOOKS AS BORROWED AND BOUGHT
     ##################################################################################
-    @app.route('/Book/Pickedupbooks/Add',methods=['POST'])
     @app.route('/Book/Borrowed/Add',methods=['PUT'])
     @app.route('/Book/Bought/Add',methods=['PUT'])
     @token_required
@@ -1815,6 +1882,8 @@ def create_app():
                     transaction.transaction_status = transaction_statuses.lend.pickup_by_borrower
                     transaction.borrower_id = current_user.usernumber
                     transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pending
+                    transaction.transaction_book_ts = datetime.utcnow()
+                    transaction.setpricing(transaction_type = transaction.transaction_type, transaction_score = transaction.transaction_score, userscore = current_user.userscore)
                     transaction.update()
                     return make_response(
                         jsonify(
@@ -1846,6 +1915,7 @@ def create_app():
                     transaction.transaction_status = transaction_statuses.sell.booked_by_buyer
                     transaction.borrower_id = current_user.usernumber
                     transaction.borrower_transaction_status = borrower_transaction_statuses.lend.pending
+                    transaction.transaction_book_ts = datetime.utcnow()
                     transaction.update()
                     return make_response(
                         jsonify(
@@ -2003,7 +2073,7 @@ def create_app():
 
                 url = url_for('verifyuser',token = token,_external=True)
                 template = render_template('verifyTokenEmail.html',url = url)
-                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                high_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
 
                 return make_response(
@@ -2140,7 +2210,7 @@ def create_app():
 
                 url = url_for('verifyuser',token = token,_external=True)
                 template = render_template('verifyTokenEmail.html',url = url)
-                mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                high_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
                 
             if not user.phn_verified or user.phn_verified is None:
                 phoneverified = False
@@ -2252,7 +2322,7 @@ def create_app():
 
                     url = url_for('verifychangepassword',token = token,_external=True)
                     template = render_template('verifyTokenPassword.html',url = url)
-                    mail_queue.enqueue(sendchangepasswordmail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+                    high_queue.enqueue(sendchangepasswordmail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
                     return make_response(
                             jsonify(
@@ -2366,7 +2436,7 @@ def create_app():
         result =  db.session.query(bookModel,transactionModel).\
                     filter(transactionModel.store_id == store_id).\
                     filter(transactionModel.book_id == bookModel.book_id).\
-                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller])).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller,transaction_statuses.lend.lost_by_borrower])).\
                     all()
 
         if not result or result is None: 
@@ -2458,11 +2528,37 @@ def create_app():
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
-                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller]) ).\
+                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller,transaction_statuses.lend.lost_by_borrower]) ).\
                         first()
+
+        if transaction.transaction_status in [transaction_statuses.lend.uploaded_with_lender,transaction_statuses.sell.uploaded_with_seller]:
+            user_id = transaction.lender_id 
+        else:
+            user_id = transaction.borrower_id
+
+        lost_books = transactionModel.\
+                        query.\
+                        filter(transactionModel.borrower_id == user_id).\
+                        filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.book_id != book_id).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.lost_by_borrower).\
+                        all()
+
         
+
         if transaction is not None:
             pricing = transaction.getdropoffpricing()
+            lost_book_pricing = []
+            if lost_books is not None:
+                
+                for lost_book in lost_books:
+                    pricing = lost_book.getdropoffpricing()
+                    lost_book_dict = {
+                        "lost_book_id" : lost_book.book_id,
+                        "lost_book_price" : pricing
+                    }
+                    lost_book_pricing.append(lost_book_dict)
+
 
             return make_response( 
                                     jsonify(
@@ -2470,7 +2566,8 @@ def create_app():
                                             "message" : "Dropoff pricing!",
                                             "status" : True,
                                             "response" : {
-                                                "pricing" : pricing
+                                                "pricing" : pricing,
+                                                "lost_book_pricing" : lost_book_pricing,
                                             }
                                         }
                                     ),
@@ -2494,12 +2591,20 @@ def create_app():
         data = request.get_json()
         store_id = current_store.store_id
         book_id = data.get('book_id')
+        lost_book_id = data.get('lost_book_id')
 
         transaction =   transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
-                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller]) ).\
+                        filter( transactionModel.transaction_status.in_([transaction_statuses.lend.uploaded_with_lender,transaction_statuses.lend.return_by_borrower,transaction_statuses.sell.uploaded_with_seller,transaction_statuses.lend.lost_by_borrower]) ).\
+                        first()
+
+        lost_book_transaction =   transactionModel.\
+                        query.\
+                        filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.book_id.in_(lost_book_id)).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.lost_by_borrower).\
                         first()
 
         if transaction is None: 
@@ -2518,6 +2623,8 @@ def create_app():
                     transaction.transaction_status = transaction_statuses.lend.submitted_by_lender
                     transaction.transaction_submit_ts = datetime.utcnow()
                     transaction.update()
+                    if conn.hexists(transaction.lender_id,transaction.book_id):
+                        conn.hdel(transaction.lender_id,transaction.book_id)
 
                 elif transaction.transaction_status == transaction_statuses.lend.return_by_borrower :
                     transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
@@ -2525,6 +2632,19 @@ def create_app():
                     transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
                     transaction.transaction_return_ts = datetime.utcnow()
                     transaction.update()
+                    if conn.hexists(transaction.lender_id,transaction.book_id):
+                        conn.hdel(transaction.lender_id,transaction.book_id)
+
+
+                if lost_book_transaction is not None:
+                    for lost_transaction in lost_book_transaction:
+                        lost_transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
+                        lost_transaction.store_transaction_status = store_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.transaction_return_ts = datetime.utcnow()
+                        lost_transaction.update()
+                        if conn.hexists(lost_transaction.borrower_id,lost_transaction.book_id):
+                            conn.hdel(lost_transaction.borrower_id,lost_transaction.book_id)
                 
                 return make_response( 
                                     jsonify(
@@ -2542,6 +2662,18 @@ def create_app():
                 transaction.transaction_status = transaction_statuses.sell.submitted_by_seller
                 transaction.transaction_submit_ts = datetime.utcnow()
                 transaction.update()
+                if conn.hexists(transaction.lender_id,transaction.book_id):
+                    conn.hdel(transaction.lender_id,transaction.book_id)
+
+                if lost_book_transaction is not None:
+                    for lost_transaction in lost_book_transaction:
+                        lost_transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
+                        lost_transaction.store_transaction_status = store_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.transaction_return_ts = datetime.utcnow()
+                        lost_transaction.update()
+                        if conn.hexists(lost_transaction.borrower_id,lost_transaction.book_id):
+                            conn.hdel(lost_transaction.borrower_id,lost_transaction.book_id)
 
                 return make_response( 
                                     jsonify(
@@ -2569,9 +2701,35 @@ def create_app():
                         filter(transactionModel.store_id == store_id).\
                         filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.lend.pickup_by_borrower,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller,transaction_statuses.sell.booked_by_buyer])).\
                         first()
+
+
+        if transaction.transaction_status in [transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller]:
+            user_id = transaction.lender_id 
+        else:
+            user_id = transaction.borrower_id
+
+
+        lost_books = transactionModel.\
+                        query.\
+                        filter(transactionModel.borrower_id == user_id).\
+                        filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.lost_by_borrower).\
+                        all()
+
         
+
         if transaction is not None:
-            pricing = transaction.getpickuppricing()
+            pricing = transaction.getdropoffpricing()
+            lost_book_pricing = []
+            if lost_books is not None:
+                
+                for lost_book in lost_books:
+                    pricing = lost_book.getdropoffpricing()
+                    lost_book_dict = {
+                        "lost_book_id" : lost_book.book_id,
+                        "lost_book_price" : pricing
+                    }
+                    lost_book_pricing.append(lost_book_dict)
 
             return make_response( 
                                     jsonify(
@@ -2579,7 +2737,8 @@ def create_app():
                                             "message" : "Pickup confirmed!",
                                             "status" : True,
                                             "response" : {
-                                                "pricing" : pricing
+                                                "pricing" : pricing,
+                                                "lost_book_pricing" : lost_book_pricing,
                                             }
                                         }
                                     ),
@@ -2604,12 +2763,21 @@ def create_app():
 
         store_id = current_store.store_id
         book_id = data.get('book_id')
+        lost_book_id = data.get('lost_book_id')
 
         transaction =   transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
                         filter(transactionModel.store_id == store_id).\
                         filter(transactionModel.transaction_status.in_([transaction_statuses.lend.submitted_by_borrower,transaction_statuses.lend.removed_by_lender,transaction_statuses.lend.pickup_by_borrower,transaction_statuses.sell.pickup_by_buyer,transaction_statuses.sell.removed_by_seller,transaction_statuses.sell.booked_by_buyer])).\
+                        first()
+
+
+        lost_book_transaction =   transactionModel.\
+                        query.\
+                        filter(transactionModel.store_id == store_id).\
+                        filter(transactionModel.book_id.in_(lost_book_id)).\
+                        filter(transactionModel.transaction_status == transaction_statuses.lend.lost_by_borrower).\
                         first()
 
         if not transaction : 
@@ -2636,11 +2804,28 @@ def create_app():
                     transaction.store_transaction_status = store_transaction_statuses.lend.pickup_by_lender
                     transaction.transaction_lenderpickup_ts = datetime.utcnow()
                     transaction.update()
+                    if conn.hexists(transaction.lender_id,transaction.book_id):
+                        conn.hdel(transaction.lender_id,transaction.book_id)
+                    low_queue.enqueue(generateUserScore,transaction.borrower_id)
 
                 elif transaction.transaction_status == transaction_statuses.lend.removed_by_lender:
                     transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
                     transaction.transaction_lenderpickup_ts = datetime.utcnow()
                     transaction.update()
+                    if conn.hexists(transaction.lender_id,transaction.book_id):
+                        conn.hdel(transaction.lender_id,transaction.book_id)
+
+                if lost_book_transaction is not None:
+                    for lost_transaction in lost_book_transaction:
+                        lost_transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
+                        lost_transaction.store_transaction_status = store_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.transaction_return_ts = datetime.utcnow()
+                        lost_transaction.update()
+                        if conn.hexists(lost_transaction.borrower_id,lost_transaction.book_id):
+                            conn.hdel(lost_transaction.borrower_id,lost_transaction.book_id)
+
+                
 
                 return make_response( 
                                     jsonify(
@@ -2667,11 +2852,24 @@ def create_app():
                     transaction.store_transaction_status = store_transaction_statuses.sell.collected_by_seller
                     transaction.transaction_lenderpickup_ts = datetime.utcnow()
                     transaction.update()
+                    low_queue.enqueue(generateUserScore,transaction.borrower_id)
 
                 elif transaction.transaction_status == transaction_statuses.sell.removed_by_seller:
                     transaction.transaction_status = transaction_statuses.sell.pickup_by_seller
                     transaction.transaction_lenderpickup_ts = datetime.utcnow()
                     transaction.update()
+                    if conn.hexists(transaction.lender_id,transaction.book_id):
+                        conn.hdel(transaction.lender_id,transaction.book_id)
+
+                if lost_book_transaction is not None:
+                    for lost_transaction in lost_book_transaction:
+                        lost_transaction.transaction_status = transaction_statuses.lend.submitted_by_borrower
+                        lost_transaction.store_transaction_status = store_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
+                        lost_transaction.transaction_return_ts = datetime.utcnow()
+                        lost_transaction.update()
+                        if conn.hexists(lost_transaction.borrower_id,lost_transaction.book_id):
+                            conn.hdel(lost_transaction.borrower_id,lost_transaction.book_id)
 
                 return make_response( 
                                     jsonify(
@@ -3029,7 +3227,7 @@ def create_app():
 
             url = url_for('verifyuser',token = token,_external=True)
             template = render_template('verifyTokenEmail.html',url = url)
-            mail_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
+            high_queue.enqueue(sendverifymail,app.config['AWS_ACCESS_KEY_ID'],app.config['AWS_SECRET_ACCESS_KEY'],app.config['MAILER_ADDRESS'],user.email,template,retry=Retry(max=2))
 
             return render_template('store-registration.html', error = "User is not verified yet", status = False)
             

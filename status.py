@@ -13,8 +13,9 @@ class Defaulttype (enum.Enum):
     UPLOADED_BOOK_NOT_SUBMITTED = 1
     RETURNED_BOOK_NOT_PICKEDUP = 2
     BOOKED_BOOK_NOT_PICKEDUP = 3
-    BORROOWED_BOOK_NOT_RETURNED = 4
+    BORROWED_BOOK_NOT_RETURNED = 4
     REMOVED_BOOK_NOT_DROPPEDOFF = 5
+    BOOK_BORROWED_MAYBE_LOST = 6
 
     
 class transaction_statuses:
@@ -24,7 +25,8 @@ class transaction_statuses:
         pickup_by_borrower = "Book will be picked up by someone!"
         borrowed_by_borrower = "Book is borrowed by someone!"
         return_by_borrower = "Book will be returned to shop shortly!"
-        submitted_by_borrower = "Book returned! Please pick up book from shop"
+        lost_by_borrower = "Book Lost by borrower! You'll get your full book price shortly"
+        submitted_by_borrower = "Please pick up book or full payment from shop"
         removed_by_lender = "Removed! Please pick up book from shop"
         pickup_by_lender = "Book with lender transaction complete"
     class sell:

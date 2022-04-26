@@ -1,6 +1,6 @@
 from fileinput import filename
 import requests
-from models import booksubjectsModel, storeModel, transactionModel
+from models import booksubjectsModel, storeModel, transactionModel, db, userModel
 from status import Transactiontype, transaction_statuses, store_transaction_statuses
 import random
 import math
@@ -44,6 +44,20 @@ def booksubjectAdd( book_id, isbn_no):
     for sub in subjects:
         booksubjectsModel(book_id = book_id, book_subject = sub).insert()
 
+def generateUserScore(user_id):
+    averagescore = db.session.query(db.func.avg(transactionModel.transaction_score)).\
+                    filter(transactionModel.borrower_id.isnot(None)).\
+                    filter(transactionModel.borrower_id == user_id).\
+                    filter(transactionModel.transaction_status.in_([transaction_statuses.lend.pickup_by_lender,transaction_statuses.sell.collected_by_seller])).\
+                    scalar()
+
+    averagescore = int(round(averagescore,0))
+
+    user = userModel.query.filter(userModel.usernumber == user_id).first()
+
+    user.userscore = averagescore
+
+    user.update()
 
 
 def generateOTP():

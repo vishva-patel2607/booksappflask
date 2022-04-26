@@ -11,7 +11,7 @@ from redisconnection import conn
 
 
 
-listen = ['mail', 'utility', 'notification']
+listen = ['High', 'Mid', 'Low']
 
 app = create_app()
 app.app_context().push()

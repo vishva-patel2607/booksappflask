@@ -56,6 +56,7 @@ class userModel(db.Model):
     created_on = db.Column(db.DateTime, nullable=True)
     usertype = db.Column(db.String(50))
     last_active = db.Column(db.DateTime, nullable=True)
+    userscore = db.Column(db.Integer)
 
 
     def __init__(self, username, password,email , firstname, lastname, dob, phonenumber,created_on,usertype):
@@ -68,6 +69,7 @@ class userModel(db.Model):
         self.phonenumber = phonenumber
         self.created_on = created_on
         self.usertype = usertype
+        self.userscore = 100
 
 
     def details(self):
@@ -80,7 +82,8 @@ class userModel(db.Model):
             'lastname': self.lastname,
             'dob': self.dob,
             'phonenumber': self.phonenumber,
-            'usertype': self.usertype
+            'usertype': self.usertype,
+            'userscore': self.userscore
         }
 
     def insert(self):
@@ -321,13 +324,16 @@ class transactionModel(db.Model):
     company_cost = db.Column(db.BigInteger)
     transaction_upload_ts = db.Column(db.DateTime)
     transaction_submit_ts = db.Column(db.DateTime)
+    transaction_book_ts = db.Column(db.DateTime)
     transaction_pickup_ts = db.Column(db.DateTime)
+    transaction_remove_ts = db.Column(db.DateTime)
     transaction_return_ts = db.Column(db.DateTime)
     transaction_lenderpickup_ts = db.Column(db.DateTime)
     transaction_type = db.Column(db.Text)
+    transaction_score = db.Column(db.Integer)
 
 
-    def __init__(self, book_id, transaction_status,lender_id , store_id, borrower_id, invoice_id, lender_transaction_status, store_transaction_status, borrower_transaction_status, book_price, transaction_upload_ts, transaction_submit_ts, transaction_pickup_ts, transaction_return_ts, transaction_lenderpickup_ts, transaction_type): 
+    def __init__(self, book_id, transaction_status,lender_id , store_id, borrower_id, invoice_id, lender_transaction_status, store_transaction_status, borrower_transaction_status, book_price, transaction_upload_ts, transaction_submit_ts, transaction_book_ts, transaction_pickup_ts, transaction_remove_ts, transaction_return_ts, transaction_lenderpickup_ts, transaction_type): 
         self.book_id  = book_id
         self.transaction_status = transaction_status
         self.lender_id = lender_id
@@ -340,10 +346,16 @@ class transactionModel(db.Model):
         self.book_price = book_price
         self.transaction_upload_ts = transaction_upload_ts
         self.transaction_submit_ts = transaction_submit_ts
+        self.transaction_book_ts = transaction_book_ts
         self.transaction_pickup_ts = transaction_pickup_ts
+        self.transaction_remove_ts = transaction_remove_ts
         self.transaction_return_ts = transaction_return_ts
         self.transaction_lenderpickup_ts = transaction_lenderpickup_ts
         self.transaction_type = transaction_type
+        if transaction_type == Transactiontype.lend.name:
+            self.transaction_score = 100
+        else:
+            self.transaction_score = 95
         self.setpricing(transaction_type)
 
 
@@ -366,10 +378,13 @@ class transactionModel(db.Model):
             "company_cost" : self.company_cost,
             "transaction_upload_ts" : self.transaction_upload_ts,
             "transaction_submit_ts" : self.transaction_submit_ts,
+            "transaction_book_ts" : self.transaction_book_ts,
             "transaction_pickup_ts" : self.transaction_pickup_ts,
+            "transaction_remove_ts" : self.transaction_remove_ts,
             "transaction_return_ts" : self.transaction_return_ts,
             "transaction_lenderpickup_ts" : self.transaction_lenderpickup_ts,
             "transaction_type" : self.transaction_type,
+            "transaction_score" : self.transaction_score,
         }
 
     def insert(self):
@@ -390,7 +405,7 @@ class transactionModel(db.Model):
 
     def changeprice(self,book_price,transaction_type):
         self.book_price = book_price
-        self.setpricing(transaction_type)
+        self.setpricing(transaction_type,transaction_score=self.transaction_score)
 
     def getcodes(self):
         code = "code fetching error"
@@ -400,7 +415,7 @@ class transactionModel(db.Model):
                 code = self.transaction_upload_ts.strftime("%m%d%Y%H%M%S")+tran_id
             elif self.transaction_status in [transaction_statuses.lend.submitted_by_lender, transaction_statuses.lend.pickup_by_borrower]:
                 code = self.transaction_submit_ts.strftime("%m%d%Y%H%M%S")+tran_id
-            elif self.transaction_status in [transaction_statuses.lend.borrowed_by_borrower, transaction_statuses.lend.return_by_borrower, transaction_statuses.lend.submitted_by_borrower]:
+            elif self.transaction_status in [transaction_statuses.lend.borrowed_by_borrower, transaction_statuses.lend.return_by_borrower, transaction_statuses.lend.lost_by_borrower, transaction_statuses.lend.submitted_by_borrower]:
                 code = self.transaction_pickup_ts.strftime("%m%d%Y%H%M%S")+tran_id
             elif self.transaction_status == transaction_statuses.lend.removed_by_lender:
                 code = self.transaction_return_ts.strftime("%m%d%Y%H%M%S")+tran_id
@@ -420,17 +435,70 @@ class transactionModel(db.Model):
 
         return code
 
-    def setpricing(self,transaction_type):
-        if Transactiontype.lend.name == transaction_type:
-            self.borrower_price = int(0.3*self.book_price)
-            self.lender_cost = int(0.15*self.book_price)
-            self.store_cost = int(0.10*self.book_price)
-            self.company_cost = int(0.05*self.book_price)
-        else:
-            self.borrower_price = int(0)
-            self.lender_cost = int(0.75*self.book_price)
-            self.store_cost = int(0.10*self.book_price)
-            self.company_cost = int(0.15*self.book_price)
+    def setpricing(self,transaction_type,transaction_score=100,userscore = 100):
+        if userscore >= 80:
+            if Transactiontype.lend.name == transaction_type:
+                if transaction_score == 100:
+                    self.borrower_price = int(0.3*self.book_price)
+                    self.lender_cost = int(0.15*self.book_price)
+                    self.store_cost = int(0.10*self.book_price)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+
+                if transaction_score == 90:
+                    self.borrower_price = int(0.40*self.book_price)
+                    self.lender_cost = int(0.20*self.book_price)
+                    self.store_cost = int(0.10*self.book_price)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+
+                if transaction_score == 80:
+                    self.borrower_price = int(0.60*self.book_price)
+                    self.lender_cost = int(0.30*self.book_price)
+                    self.store_cost = int(0.10*self.book_price)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+
+                if transaction_score == 70:
+                    self.borrower_price = int(self.book_price)
+                    self.lender_cost = int(self.book_price)
+                    self.store_cost = int(0)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+            else:
+                self.borrower_price = int(0)
+                self.lender_cost = int(0.75*self.book_price)
+                self.store_cost = int(0.10*self.book_price)
+                self.company_cost = self.book_price - (self.borrower_price + self.lender_cost + self.store_cost)
+
+        if userscore < 80:
+            if Transactiontype.lend.name == transaction_type:
+                if transaction_score == 100:
+                    self.borrower_price = int(0.40*self.book_price)
+                    self.lender_cost = int(0.20*self.book_price)
+                    self.store_cost = int(0.10*self.book_price)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+
+                if transaction_score == 90:
+                    self.borrower_price = int(0.50*self.book_price)
+                    self.lender_cost = int(0.25*self.book_price)
+                    self.store_cost = int(0.10*self.book_price)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+
+                if transaction_score == 80:
+                    self.borrower_price = int(0.70*self.book_price)
+                    self.lender_cost = int(0.35*self.book_price)
+                    self.store_cost = int(0.10*self.book_price)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+
+                if transaction_score == 70:
+                    self.borrower_price = int(self.book_price)
+                    self.lender_cost = int(self.book_price)
+                    self.store_cost = int(0)
+                    self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
+            else:
+                    self.borrower_price = int(0)
+                    self.lender_cost = int(0.75*self.book_price)
+                    self.store_cost = int(0.10*self.book_price)
+                    self.company_cost = self.book_price - (self.borrower_price + self.lender_cost + self.store_cost)
+
+            
 
 
     def getdropoffpricing(self):
