@@ -230,12 +230,17 @@ def removedNeverDroppedoff(initial_time):
     
     
 
-
-    
-
-    
-    
-
-uploadedNotSubmitted()
+def regularJob():
+    uploadedNotSubmitted()
+    print("uploadedNotSubmitted COMPLETED ----------------------->")
+    returnedNotPickedup()
+    print("returnedNotPickedup COMPLETED ----------------------->")
+    bookedNotPickedup()
+    print("bookedNotPickedup COMPLETED ----------------------->")
+    borrowedNeverReturned()
+    print("borrowedNeverReturned COMPLETED ----------------------->")
+    removedNeverDroppedoff()
+    print("removedNeverDroppedoff COMPLETED ----------------------->")
+    print("\n\n\n COMPLETED ----------------------->")
         
-
+regularJob()
