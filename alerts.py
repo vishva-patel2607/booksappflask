@@ -231,15 +231,16 @@ def removedNeverDroppedoff(initial_time):
     
 
 def regularJob():
-    uploadedNotSubmitted()
+    initial_time = datetime.datetime.utcnow()
+    uploadedNotSubmitted(initial_time)
     print("uploadedNotSubmitted COMPLETED ----------------------->")
-    returnedNotPickedup()
+    returnedNotPickedup(initial_time)
     print("returnedNotPickedup COMPLETED ----------------------->")
-    bookedNotPickedup()
+    bookedNotPickedup(initial_time)
     print("bookedNotPickedup COMPLETED ----------------------->")
-    borrowedNeverReturned()
+    borrowedNeverReturned(initial_time)
     print("borrowedNeverReturned COMPLETED ----------------------->")
-    removedNeverDroppedoff()
+    removedNeverDroppedoff(initial_time)
     print("removedNeverDroppedoff COMPLETED ----------------------->")
     print("\n\n\n COMPLETED ----------------------->")
         
