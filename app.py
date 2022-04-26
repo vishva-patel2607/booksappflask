@@ -2719,7 +2719,7 @@ def create_app():
         
 
         if transaction is not None:
-            pricing = transaction.getdropoffpricing()
+            pricing = transaction.getpickuppricing()
             lost_book_pricing = []
             if lost_books is not None:
                 
