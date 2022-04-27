@@ -456,7 +456,7 @@ class transactionModel(db.Model):
                     self.store_cost = int(0.10*self.book_price)
                     self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
 
-                if transaction_score == 70:
+                if transaction_score < 70:
                     self.borrower_price = int(self.book_price)
                     self.lender_cost = int(self.book_price)
                     self.store_cost = int(0)
@@ -487,7 +487,7 @@ class transactionModel(db.Model):
                     self.store_cost = int(0.10*self.book_price)
                     self.company_cost = (self.borrower_price) - (self.lender_cost + self.store_cost)
 
-                if transaction_score == 70:
+                if transaction_score < 70:
                     self.borrower_price = int(self.book_price)
                     self.lender_cost = int(self.book_price)
                     self.store_cost = int(0)

@@ -1812,6 +1812,7 @@ def create_app():
                 if transaction.transaction_status == transaction_statuses.lend.borrowed_by_borrower:
                     transaction.transaction_status = transaction_statuses.lend.lost_by_borrower
                     transaction.transaction_score = 25
+                    transaction.setpricing(transaction.transaction_type,transaction_score=25,userscore = current_user.userscore)
                     transaction.update()
                     if conn.hexists(transaction.borrower_id,transaction.book_id):
                         conn.hdel(transaction.lender_id,transaction.book_id)
