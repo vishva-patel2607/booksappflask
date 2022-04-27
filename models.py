@@ -521,7 +521,7 @@ class transactionModel(db.Model):
 
                 pricing['borrower'] = None
 
-            elif self.transaction_status == transaction_statuses.lend.return_by_borrower:
+            elif self.transaction_status == transaction_statuses.lend.return_by_borrower or self.transaction_status == transaction_statuses.lend.lost_by_borrower:
                 
                 pricing['borrower']['pricing'] = self.book_price - self.borrower_price
                 borrower = userModel.query.filter_by(usernumber = self.borrower_id).first()
