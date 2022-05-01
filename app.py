@@ -1600,84 +1600,93 @@ def create_app():
         data = request.get_json()
         book_id = data.get('book_id')
 
-        transaction = transactionModel.query.filter_by(book_id = book_id).first()
+        transaction = transactionModel.query.filter(transactionModel.book_id == book_id).filter(transactionModel.lender_id == current_user.usernumber).first()
 
-        if transaction.transaction_type == Transactiontype.lend.name:
-            if transaction.transaction_status == transaction_statuses.lend.uploaded_with_lender:
-                transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
-                transaction.transaction_lenderpickup_ts = datetime.utcnow()
-                transaction.lender_transaction_status = lender_transaction_statuses.lend.removed_by_lender
-                transaction.store_transaction_status = store_transaction_statuses.lend.removed_by_lender
-                transaction.update()
-                return make_response(
+        if transaction and transaction is not None:
+            if transaction.transaction_type == Transactiontype.lend.name:
+                if transaction.transaction_status == transaction_statuses.lend.uploaded_with_lender:
+                    transaction.transaction_status = transaction_statuses.lend.pickup_by_lender
+                    transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                    transaction.lender_transaction_status = lender_transaction_statuses.lend.removed_by_lender
+                    transaction.store_transaction_status = store_transaction_statuses.lend.removed_by_lender
+                    transaction.update()
+                    return make_response(
+                                jsonify({
+                                "message" : "Book removed from uploads!",
+                                "status" : True,
+                                }),
+                                201
+                            )
+                    
+                elif transaction.transaction_status == transaction_statuses.lend.submitted_by_lender:
+                    transaction.transaction_status = transaction_statuses.lend.removed_by_lender
+                    transaction.transaction_return_ts = datetime.utcnow()
+                    transaction.lender_transaction_status = lender_transaction_statuses.lend.removed_by_lender
+                    transaction.store_transaction_status = store_transaction_statuses.lend.removed_by_lender
+                    transaction.update()
+                    return make_response(
+                                jsonify({
+                                "message" : "Book will be removed once collected from shop!",
+                                "status" : True,
+                                }),
+                                201
+                            )
+
+                else:
+                    return make_response(
                             jsonify({
-                            "message" : "Book removed from uploads!",
-                            "status" : True,
+                            "message" : "Sorry but the book is being borrowed by someone and so can't be removed!",
+                            "status" : False,
                             }),
                             201
                         )
-                
-            elif transaction.transaction_status == transaction_statuses.lend.submitted_by_lender:
-                transaction.transaction_status = transaction_statuses.lend.removed_by_lender
-                transaction.transaction_return_ts = datetime.utcnow()
-                transaction.lender_transaction_status = lender_transaction_statuses.lend.removed_by_lender
-                transaction.store_transaction_status = store_transaction_statuses.lend.removed_by_lender
-                transaction.update()
-                return make_response(
-                            jsonify({
-                            "message" : "Book will be removed once collected from shop!",
-                            "status" : True,
-                            }),
-                            201
-                        )
+                    
 
             else:
-                return make_response(
-                        jsonify({
-                        "message" : "Sorry but the book is being borrowed by someone and so can't be removed!",
-                        "status" : False,
-                        }),
-                        201
-                    )
-                
+                if transaction.transaction_status == transaction_statuses.sell.uploaded_with_seller:
+                    transaction.transaction_status = transaction_statuses.sell.pickup_by_seller
+                    transaction.transaction_lenderpickup_ts = datetime.utcnow()
+                    transaction.lender_transaction_status = lender_transaction_statuses.sell.removed_by_seller
+                    transaction.store_transaction_status = store_transaction_statuses.sell.removed_by_seller
+                    transaction.update()
+                    return make_response(
+                                jsonify({
+                                "message" : "Book removed from sold books!",
+                                "status" : True,
+                                }),
+                                201
+                            )
+                    
+                elif transaction.transaction_status == transaction_statuses.sell.submitted_by_seller:
+                    transaction.transaction_status = transaction_statuses.sell.removed_by_seller
+                    transaction.transaction_return_ts = datetime.utcnow()
+                    transaction.lender_transaction_status = lender_transaction_statuses.sell.removed_by_seller
+                    transaction.store_transaction_status = store_transaction_statuses.sell.removed_by_seller
+                    transaction.update()
+                    return make_response(
+                                jsonify({
+                                "message" : "Book will be removed once collected from shop!",
+                                "status" : True,
+                                }),
+                                201
+                            )
 
+                else:
+                    return make_response(
+                            jsonify({
+                            "message" : "Sorry but the book is being borrowed by someone and so can't be removed!",
+                            "status" : False,
+                            }),
+                            201
+                        )
         else:
-            if transaction.transaction_status == transaction_statuses.sell.uploaded_with_seller:
-                transaction.transaction_status = transaction_statuses.sell.pickup_by_seller
-                transaction.transaction_lenderpickup_ts = datetime.utcnow()
-                transaction.lender_transaction_status = lender_transaction_statuses.sell.removed_by_seller
-                transaction.store_transaction_status = store_transaction_statuses.sell.removed_by_seller
-                transaction.update()
-                return make_response(
+            return make_response(
                             jsonify({
-                            "message" : "Book removed from sold books!",
-                            "status" : True,
+                            "message" : "Sorry but the book can't be removed!",
+                            "status" : False,
                             }),
                             201
                         )
-                
-            elif transaction.transaction_status == transaction_statuses.sell.submitted_by_seller:
-                transaction.transaction_status = transaction_statuses.sell.removed_by_seller
-                transaction.transaction_return_ts = datetime.utcnow()
-                transaction.lender_transaction_status = lender_transaction_statuses.sell.removed_by_seller
-                transaction.store_transaction_status = store_transaction_statuses.sell.removed_by_seller
-                transaction.update()
-                return make_response(
-                            jsonify({
-                            "message" : "Book will be removed once collected from shop!",
-                            "status" : True,
-                            }),
-                            201
-                        )
-
-            else:
-                return make_response(
-                        jsonify({
-                        "message" : "Sorry but the book is being borrowed by someone and so can't be removed!",
-                        "status" : False,
-                        }),
-                        201
-                    )
 
     ##################################################################################
     # TO DELETE OR REMOVE BOOKS BORROWED AND BOOKED FOR BUYING CURRENTLY
@@ -1693,6 +1702,7 @@ def create_app():
         transaction = transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
+                        filter(transactionModel.borrower_id == current_user.usernumber).\
                         first()
         
 
@@ -1804,6 +1814,7 @@ def create_app():
         transaction = transactionModel.\
                         query.\
                         filter(transactionModel.book_id == book_id).\
+                        filter(transactionModel.borrower_id == current_user.usernumber).\
                         first()
 
 
