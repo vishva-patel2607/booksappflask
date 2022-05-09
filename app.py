@@ -1029,7 +1029,9 @@ def create_app():
                 book_price= book_price,
                 transaction_upload_ts= datetime.now(),
                 transaction_submit_ts= None,
+                transaction_book_ts= None,
                 transaction_pickup_ts= None,
+                transaction_remove_ts = None,
                 transaction_return_ts= None,
                 transaction_lenderpickup_ts= None,
                 transaction_type=Transactiontype.sell.name
