@@ -251,6 +251,7 @@ def testJobber():
     store_id = 4
     book_img_url = 'https://booksapp-image-data.s3.ap-south-1.amazonaws.com/book-image-folder/book-01-23-2022_151001.jpg'
 
+    '''
     ################# DEFAULT 1##########################################
     book = bookModel(
                 book_name  = 'default 1',
@@ -274,8 +275,8 @@ def testJobber():
         store_id= store_id,
         borrower_id= None,
         invoice_id = None,
-        lender_transaction_status= lender_transaction_statuses.lend.removed_by_lender,
-        store_transaction_status= store_transaction_statuses.lend.removed_by_lender,
+        lender_transaction_status= lender_transaction_statuses.lend.pending,
+        store_transaction_status= store_transaction_statuses.lend.pending,
         borrower_transaction_status = borrower_transaction_statuses.lend.pending,
         book_price= 500,
         transaction_upload_ts= one_week_ago,
@@ -289,6 +290,7 @@ def testJobber():
     )
 
     transaction.insert()
+    '''
 
 
 
@@ -316,8 +318,8 @@ def testJobber():
         store_id= store_id,
         borrower_id= None,
         invoice_id = None,
-        lender_transaction_status= lender_transaction_statuses.lend.pending,
-        store_transaction_status= store_transaction_statuses.lend.pending,
+        lender_transaction_status= lender_transaction_statuses.lend.removed_by_lender,
+        store_transaction_status= store_transaction_statuses.lend.removed_by_lender,
         borrower_transaction_status = borrower_transaction_statuses.lend.pending,
         book_price= 500,
         transaction_upload_ts= two_week_ago,
@@ -335,7 +337,7 @@ def testJobber():
 
     ################################### DEFAULT 3 #######################################
 
-    book = bookModel(
+    '''book = bookModel(
                 book_name  = 'default 3',
                 book_year = 1977,
                 book_condition = 'good',
@@ -372,6 +374,7 @@ def testJobber():
     )
 
     transaction.insert()
+    '''
 
 
     ################################### DEFAULT 4 #######################################
@@ -404,8 +407,8 @@ def testJobber():
         book_price= 500,
         transaction_upload_ts= two_week_ago,
         transaction_submit_ts= two_week_ago,
-        transaction_book_ts= four_week_ago,
-        transaction_pickup_ts= four_week_ago,
+        transaction_book_ts= three_week_ago,
+        transaction_pickup_ts= three_week_ago,
         transaction_remove_ts = None,
         transaction_return_ts= None,
         transaction_lenderpickup_ts= None,
@@ -444,8 +447,8 @@ def testJobber():
         book_price= 500,
         transaction_upload_ts= two_week_ago,
         transaction_submit_ts= two_week_ago,
-        transaction_book_ts= four_week_ago,
-        transaction_pickup_ts= four_week_ago,
+        transaction_book_ts= three_week_ago,
+        transaction_pickup_ts= three_week_ago,
         transaction_remove_ts = one_week_ago,
         transaction_return_ts= None,
         transaction_lenderpickup_ts= None,
@@ -484,6 +487,6 @@ def testJobberCheck():
         print(decoded_data)
 
 
-#testJobber()      
+testJobber()      
 regularJob()
 testJobberCheck()

@@ -1088,9 +1088,11 @@ def create_app():
 
             ret_list = []
             for book,transaction in data:
+                print(book)
+                print(transaction)
                 book_dict = book.details()
                 book_dict['book_transaction_info'] = transaction.details()
-                book_dict['book_transaction_default'] = decoded_data[book.book_id]
+                book_dict['book_transaction_default'] = decoded_data[str(book.book_id)]
 
              
             return make_response(
