@@ -487,6 +487,6 @@ def testJobberCheck():
         print(decoded_data)
 
 
-testJobber()      
+#testJobber()      
 regularJob()
-testJobberCheck()
+#testJobberCheck()
