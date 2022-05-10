@@ -476,7 +476,7 @@ def regularJob():
 
 
 def testJobberCheck():
-    data = conn.hgetall(13)
+    data = conn.hgetall(14)
 
     if data is not None and len(data) > 0:
         decoded_data = decode_redis(data)
