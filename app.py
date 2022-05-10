@@ -1093,6 +1093,7 @@ def create_app():
                 book_dict = book.details()
                 book_dict['book_transaction_info'] = transaction.details()
                 book_dict['book_transaction_default'] = decoded_data[str(book.book_id)]
+                ret_list.append(book_dict)
 
              
             return make_response(

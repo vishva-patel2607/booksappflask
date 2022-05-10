@@ -32,7 +32,7 @@ def returnedNotPickedup(initial_time):
                 filter(transactionModel.transaction_return_ts < one_week_ago).\
                 all()
     for default in defaults:
-        conn.hset(default.lender_id,default.book_id,Defaulttype.UPLOADED_BOOK_NOT_SUBMITTED.name)
+        conn.hset(default.lender_id,default.book_id,Defaulttype.RETURNED_BOOK_NOT_PICKEDUP.name)
 
 
 def bookedNotPickedup(initial_time):
@@ -295,7 +295,7 @@ def testJobber():
 
 
     ################################### DEFAULT 2 #######################################
-
+    '''
     book = bookModel(
                 book_name  = 'default 2',
                 book_year = 1977,
@@ -334,7 +334,7 @@ def testJobber():
 
     transaction.insert()
 
-
+    '''
     ################################### DEFAULT 3 #######################################
 
     '''book = bookModel(
@@ -378,7 +378,7 @@ def testJobber():
 
 
     ################################### DEFAULT 4 #######################################
-
+    '''
     book = bookModel(
                 book_name  = 'default 4',
                 book_year = 1977,
@@ -416,7 +416,7 @@ def testJobber():
     )
 
     transaction.insert()
-
+    '''
     ################################### DEFAULT 5 #######################################
 
     book = bookModel(
@@ -436,7 +436,7 @@ def testJobber():
 
     transaction = transactionModel(
         book_id= book.book_id,
-        transaction_status= transaction_statuses.lend.borrowed_by_borrower,
+        transaction_status= transaction_statuses.lend.return_by_borrower,
         lender_id= vishva_id,
         store_id= store_id,
         borrower_id= raj_id,
