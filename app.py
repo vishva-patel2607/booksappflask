@@ -1828,7 +1828,7 @@ def create_app():
                     transaction.setpricing(transaction.transaction_type,transaction_score=25,userscore = current_user.userscore)
                     transaction.update()
                     if conn.hexists(transaction.borrower_id,transaction.book_id):
-                        conn.hdel(transaction.lender_id,transaction.book_id)
+                        conn.hdel(transaction.borrower_id,transaction.book_id)
 
                     return make_response(
                         jsonify(
@@ -2646,8 +2646,8 @@ def create_app():
                     transaction.borrower_transaction_status = borrower_transaction_statuses.lend.dropoff_by_borrower
                     transaction.transaction_return_ts = datetime.utcnow()
                     transaction.update()
-                    if conn.hexists(transaction.lender_id,transaction.book_id):
-                        conn.hdel(transaction.lender_id,transaction.book_id)
+                    if conn.hexists(transaction.borrower_id,transaction.book_id):
+                        conn.hdel(transaction.borrower_id,transaction.book_id)
 
 
                 if lost_book_transaction is not None:
