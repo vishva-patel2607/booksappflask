@@ -25,6 +25,12 @@
           <td colspan="6">{{transaction.transaction_status if transaction.transaction_status is not none}}</td> 
         </tr>
         <tr>
+          <th colspan="2">Transaction Type</th>
+          <td colspan="6">{{transaction.transaction_type if transaction.transaction_status is not none}}</td> 
+          <th colspan="2">Transaction Score</th>
+          <td colspan="6">{{transaction.transaction_score if transaction.transaction_status is not none}}</td> 
+        </tr>
+        <tr>
           <th colspan="2">Book Id</th>
           <td colspan="2"><a class="text-gray-600" href="/Admin/Book/{{transaction.book_id}}" target="_blank" >{{transaction.book_id}}</a></td>
           <th colspan="2">Book Price</th>

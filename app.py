@@ -3400,7 +3400,33 @@ def create_app():
                 return render_template('store-confirmpayment.html',status = False, error = "No such Invoice ID found!")
 
         return render_template('store-confirmpayment.html',status = False, error = "Please fill the form correctly!")
+    
+    # name the function accordingly
+    @app.route('/User/Book/<int:book_id>', methods=['GET'])
+    @token_required_admin
+    def book_func(user, book_id = None):
+        
+        if book_id != None:
+            book = bookModel.query.filter_by(book_id = book_id)
 
+            # checking the user asking for the data is the one who owns the book
+            if book!=None:
+                res = bookModel.query.filter_by(book_id = book_id, usernumber=user.usernumber).all()
+                if res == None:
+                    # ie access denied or page not found error
+                    return render_template('404.html')
+                
+                # not sure about this do check it
+                final = db.session.query(bookModel,transactionModel,storeModel).\
+                    filter(bookModel.book_id == transactionModel.book_id).\
+                    filter(storeModel.store_id == transactionModel.store_id).\
+                    all()
+
+                return final
+
+
+        else:
+            return render_template('404.html')
 
     @app.route('/',methods=['GET'])
     def homepage():
@@ -3410,8 +3436,6 @@ def create_app():
 
 
     return app
-
-
 
 app = create_app()
 
